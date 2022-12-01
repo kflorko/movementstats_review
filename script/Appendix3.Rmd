@@ -1,0 +1,303 @@
+---
+title: "Appendix 3"
+author: "Katie Florko"
+date: "30/11/2022"
+output: html_document
+theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+
+This document contains the code from "*Statistical methods for species-habitat association using animal movement data*". This code includes the case study analysis on ringed seal movement in eastern Hudson Bay, Canada.
+
+# Prepare
+## Load packages
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(lubridate)
+library(rnaturalearth)
+library(rgdal)
+library(raster)
+library(amt)
+library(momentuHMM)
+```
+
+## Fish data
+
+Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
+```{r}
+setwd("~/Documents/R/PhD/seal-movement/data")
+fish <- read.csv("fish_2012.csv")
+head(fish)
+```
+
+Visualize the fish data.
+```{r, message = FALSE}
+# prepare fish data
+## long data frame
+fishl <- fish %>%
+  pivot_longer(cols = c(capelin, arccod, nsandlance), names_to = "species", values_to = "biomass")
+
+## raster
+fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+
+#prepare world data
+## List of azimuthal equal area - HudsonBay 
+natearth <- ne_countries(scale = "medium",returnclass = "sp")
+natearth <- natearth[which(natearth$continent!="Antarctica"),]
+nat_trans <- spTransform(natearth,CRS("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+
+#plot fish map, note that the scale is the same for each prey
+ggplot() + 
+  geom_tile(data = fishl, aes(x = x,y = y,fill = biomass)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  facet_grid(.~species)
+```
+
+
+## Seal data
+
+Next we load in the seal movement data. This is a subset of the data from Florko et al. (in review).
+```{r, message = FALSE}
+setwd("~/Documents/R/PhD/seal-movement/data")
+seal <- read.csv("seal_track_m.csv") 
+head(seal)
+```
+
+Visualize the fish data.
+```{r}
+# ensure the data is in the correct format
+seal <- seal %>%
+  mutate(id = as.character(id),
+         date = ymd_hms(date)) 
+
+# plot
+ggplot() + 
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group)) +
+  geom_point(data=seal, aes(x=x, y=y)) + 
+  geom_path(data=seal, aes(x=x, y=y)) + 
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), 
+                  expand = F) 
+```
+
+# Fit models
+#1. RSF
+Fit using amt (Signer et al. 2019)
+```{r}
+# generate availability sample
+set.seed(2023)
+data_rsf <- seal %>%
+  make_track(x, y, date) %>%
+  random_points() # default is ten times as many available points as observed points
+
+# plot used vs available
+ggplot() + 
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group)) +
+  geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_)) + 
+  geom_path(data=seal, aes(x=x, y=y)) + 
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+
+# extract fish covariates
+data_rsf <- data_rsf %>%
+  extract_covariates(fish_raster)
+
+# fit rsf
+rsf1 <- data_rsf %>%
+  amt::fit_rsf(case_ ~ capelin + arccod + nsandlance, model = TRUE)
+
+# see parameter estimates
+summary(rsf1)
+```
+
+#2. SSF
+Fit using amt (Signer et al. 2019)
+```{r, message = FALSE}
+# generate availabilty sample
+set.seed(2023)
+data_ssf <- seal %>%
+  make_track(x, y, date) %>%
+  steps() %>%
+  random_steps(n_control = 10) %>%
+  arrange(case_)
+
+# plot used vs available
+ggplot() + 
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group)) +
+  geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_)) + 
+  geom_path(data=seal, aes(x=x, y=y)) + 
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+
+# extract fish covariates
+data_ssf <- data_ssf %>%
+  extract_covariates(fish_raster)
+
+# fit ssf
+ssf1 <- data_ssf %>%
+  fit_clogit(case_ ~ capelin + arccod + nsandlance + 
+               strata(step_id_))
+
+# see parameter estimates
+summary(ssf1)
+```
+
+# 3. iSSF
+Fit using amt (Signer et al. 2019)
+```{r}
+# transform movement covariates
+data_issf <- data_ssf %>%
+  mutate(cos_ta = cos(ta_),
+         log_sl = log(sl_))
+
+# fit ssf
+issf1 <- data_issf %>%
+  fit_clogit(case_ ~ capelin + arccod + nsandlance +
+               log_sl + cos_ta +
+               strata(step_id_))
+
+# see parameter estimates
+summary(issf1)
+```
+
+#4. HMM
+Fit using momentuHMM (McClintock and Michelot, 2018)
+```{r, message = FALSE}
+# prepare dataset
+data_hmm <- seal %>%
+  make_track(x, y, date) %>%
+  extract_covariates(fish_raster) %>%
+    mutate(ID = 1,
+         x = x_,
+         y = y_,
+         date = t_) %>%
+  dplyr::select(ID, x, y, date, capelin, arccod, nsandlance) %>%
+  as.data.frame()
+
+# convert into momentuHMM format
+data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("x", "y"), 
+                                 type = "UTM",
+                                 covNames = c("capelin", "arccod", "nsandlance"))
+
+# define initial parameters
+nbStates <- 3 # number of states
+stepDist <- "gamma" # step distribution
+angleDist <- "vm" # turning angle distribution
+
+mu0 <- c(5000, 14000, 40000) # mean step length for each state
+sigma0 <- c(3000,  5000, 4000) # sd step length for each state
+stepPar0 <- c(mu0, sigma0) 
+kappa0 <- c(0.35, 0.55, 1.5) # turning angle for each state
+
+formula = ~ capelin + arccod + nsandlance # identify covariates
+
+# fit basic 3-state hmm
+set.seed(2023)
+hmm1 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=list(step=stepPar0,angle=kappa0))
+
+# retrieve parameters to refine model
+Par0_hmm1 <- momentuHMM::getPar0(hmm1, formula=formula)
+
+# fit a refined hmm with parameters from above
+set.seed(2023)
+hmm2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=Par0_hmm1$Par,
+            delta0 = Par0_hmm1$delta, 
+            beta0 = Par0_hmm1$beta,
+            formula=formula)
+
+
+# plot model
+plot(hmm2)
+
+# plot stationary probabilities for each prey
+momentuHMM::plotStationary(hmm2, plotCI= TRUE)
+```
+
+# Plot prediction maps
+```{r}
+# prep the fish data
+newfish <- fish_raster %>%
+  rasterToPoints() %>%
+  as.data.frame() %>%
+  filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
+
+# range function
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
+# PREDICTIONS
+#-------------------------- RSF
+modcoef <- summary(rsf1)$coef
+x <- exp(modcoef[1] + 
+           (modcoef[2] * newfish$capelin) + 
+           (modcoef[3] * newfish$arccod) + 
+           (modcoef[4] * newfish$nsandlance))
+x <- x / (1 + x)
+newfish$rsf_prediction <- range01(x)
+
+#-------------------------- SSF
+ssf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ # the GLM function returns the coefficients in an easier-to-wrangle format
+              capelin + arccod + nsandlance + 
+              strata(step_id_),
+      family = "binomial",
+      data = data_ssf)
+
+modcoef <- summary(ssf2)$coef 
+x <- exp(modcoef[1] + 
+           (modcoef[2] * newfish$capelin) + 
+           (modcoef[3] * newfish$arccod) + 
+           (modcoef[4] * newfish$nsandlance)) 
+x <- x / (1 + x)
+newfish$ssf_prediction <- range01(x)
+
+#-------------------------- iSSF
+issf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ # the GLM function returns the coefficients in an easier-to-wrangle format
+               capelin + arccod + nsandlance + cos_ta + log_sl +
+               strata(step_id_), 
+      family = "binomial", 
+      data = data_issf)
+
+modcoef <- summary(issf2)$coef
+x <- exp(modcoef[1] + 
+           (modcoef[2] * newfish$capelin) + 
+           (modcoef[3] * newfish$arccod) + 
+           (modcoef[4] * newfish$nsandlance)) # **MARIE** I'm not sure how to incorporate step length and turning angle
+x <- x / (1 + x)
+newfish$issf_prediction <- range01(x)
+
+#-------------------------- HMM
+# grab stationary probabilities
+x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(capelin = newfish$capelin, arccod = newfish$arccod, nsandlance = newfish$nsandlance)))
+newfish$hmm_state1 <- x$state.1
+newfish$hmm_state2 <- x$state.2
+newfish$hmm_state3 <- x$state.3 
+
+#-------------------------- all together plot
+newfish_long <- newfish %>%
+  pivot_longer(cols = rsf_prediction:hmm_state3, 
+               names_to = "model", values_to = "prediction") %>%
+  mutate(across(model, factor, levels=c("rsf_prediction","ssf_prediction","issf_prediction", "hmm_state1", "hmm_state2", "hmm_state3")))
+  
+ggplot() + 
+  geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  facet_wrap(~model) 
+```
+
+
+# References 
+Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. 2021. Predicting how climate change threatens the prey base of Arctic marine predators. Ecology Letters, 24: 2563-2575.
+
+Florko, K.R.N., Shuert, C.R., Cheung, W.W.L., Ferguson, S.H., Jonsen, I.D., Rosen, D.A.S., Sumaila, U.R., Tai, T.C., Yurkowski, D.J., Auger-Méthé, M. Linking movement and dive data to prey distribution models: new insights in foraging behavior and potential pitfalls of movement analyses. bioRxiv doi: 10.1101/2022.11.17.516808
+
+McClintock, B.T., Michelot, T. 2018. momentuHMM: R package for generalized hidden markov models of animal movement. Methods Ecol. Evolut. 9, 1518-1530.
+
+Signer, J., J. Fieberg, and T. Avgar. 2019. Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution 9:880–890.
