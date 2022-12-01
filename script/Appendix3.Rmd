@@ -68,6 +68,7 @@ Next we load in the seal movement data. This is a subset of the data from Florko
 setwd("~/Documents/R/PhD/seal-movement/data")
 seal <- read.csv("seal_track_m.csv") 
 head(seal)
+summary(seal)
 ```
 
 Visualize the fish data.
