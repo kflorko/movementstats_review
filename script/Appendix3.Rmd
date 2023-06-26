@@ -19,6 +19,7 @@ This document contains the code from "*A comparison of statistical models used t
 
 ```{r, message = FALSE, warning = FALSE}
 library(tidyverse)
+library(ggplot2)
 library(lubridate)
 library(rnaturalearth)
 library(rgdal)
@@ -32,8 +33,24 @@ library(momentuHMM)
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
 setwd("~/Documents/R/PhD/seal-movement/data")
-fish <- read.csv("fish_2012.csv")
+fish <- read.csv("preydiv_2012.csv")
 head(fish)
+
+preydiv <- fish %>%
+  mutate(lon = x, lat = y) %>%
+  dplyr::select(lon,lat,preydiv) %>%
+  filter(lon >150000 & lon < 550000) %>%
+  filter(lat > -500000 & lat < -50000) %>%
+  mutate(preydiv = round(preydiv, 3))
+head(preydiv)
+
+write.csv(preydiv, "preydiv.csv")
+
+ggplot() + 
+  geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+
 ```
 
 Visualize the fish data.
@@ -41,7 +58,7 @@ Visualize the fish data.
 # prepare fish data
 ## long data frame
 fishl <- fish %>%
-  pivot_longer(cols = c(capelin, arccod, nsandlance), names_to = "species", values_to = "biomass")
+  tidyr::pivot_longer(cols = c(capelin, arccod, nsandlance), names_to = "species", values_to = "biomass")
 
 ## raster
 fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
