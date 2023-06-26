@@ -32,19 +32,9 @@ library(momentuHMM)
 
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
-setwd("~/Documents/R/PhD/seal-movement/data")
-fish <- read.csv("preydiv_2012.csv")
+fish <- read.csv("preydiv.csv")
 head(fish)
 
-preydiv <- fish %>%
-  mutate(lon = x, lat = y) %>%
-  dplyr::select(lon,lat,preydiv) %>%
-  filter(lon >150000 & lon < 550000) %>%
-  filter(lat > -500000 & lat < -50000) %>%
-  mutate(preydiv = round(preydiv, 3))
-head(preydiv)
-
-write.csv(preydiv, "preydiv.csv")
 
 ggplot() + 
   geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv)) +
