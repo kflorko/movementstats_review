@@ -59,16 +59,12 @@ ggplot() +
 
 ## Seal data
 
-Next we load in the seal movement data. This is a subset of the data from Florko et al. (in review).
+Next we load in the seal movement data. This is a subset of the data from Florko et al. (2023).
 ```{r, message = FALSE}
-setwd("~/Documents/R/PhD/seal-movement/data")
+
 seal <- read.csv("seal_track_m.csv") 
 head(seal)
 
-
-seal <- read.csv("seal_track_m.csv") %>%
-  dplyr::slice(1:140)
-summary(seal)
 ```
 
 Visualize the fish data.
@@ -299,7 +295,7 @@ ggplot() +
 # References 
 Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. 2021. Predicting how climate change threatens the prey base of Arctic marine predators. Ecology Letters, 24: 2563-2575.
 
-Florko, K.R.N., Shuert, C.R., Cheung, W.W.L., Ferguson, S.H., Jonsen, I.D., Rosen, D.A.S., Sumaila, U.R., Tai, T.C., Yurkowski, D.J., Auger-Méthé, M. Linking movement and dive data to prey distribution models: new insights in foraging behavior and potential pitfalls of movement analyses. bioRxiv doi: 10.1101/2022.11.17.516808
+Florko, K.R.N., Shuert, C.R., Cheung, W.W.L., Ferguson, S.H., Jonsen, I.D., Rosen, D.A.S., Sumaila, U.R., Tai, T.C., Yurkowski, D.J., Auger-Méthé, M. 2023. Linking movement and dive data to prey distribution models: new insights in foraging behavior and potential pitfalls of movement analyses. Movement Ecology, 11:17 https://doi.org/10.1186/s40462-023-00377-2
 
 McClintock, B.T., Michelot, T. 2018. momentuHMM: R package for generalized hidden markov models of animal movement. Methods Ecol. Evolut. 9, 1518-1530.
 
