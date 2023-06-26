@@ -135,7 +135,7 @@ sealfishmap +
 
 # extract prey diversity covariate
 data_ssf <- data_ssf %>%
-  extract_covariates(fish_raster)
+  extract_covariates(fish_raster, where = "end") #sample at end of step
 
 # transform movement covariates
 data_ssf <- data_ssf %>%
@@ -145,11 +145,11 @@ data_ssf <- data_ssf %>%
 # fit ssfs
 ## ssf1: ssf without covariate affecting movement kernel
 ssf1 <- data_ssf %>%
-  fit_clogit(case_ ~ preydiv + log_sl + cos_ta + strata(step_id_))
+  fit_clogit(case_ ~ preydiv + log_sl + cos_ta + strata(step_id_), model = TRUE)
 
 ## ssf2: ssf with covariate affecting movement kernel
 ssf2 <- data_ssf %>%
-  fit_clogit(case_ ~ log_sl * preydiv + cos_ta * preydiv + strata(step_id_))
+  fit_clogit(case_ ~ log_sl * preydiv + cos_ta * preydiv + strata(step_id_), model = TRUE)
 
 # see parameter estimates
 summary(ssf1)
@@ -397,24 +397,127 @@ newfish <- fish_raster %>%
 
 # range function
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+```
+
+
+#1. RSF
+```{r}
+
+modcoef <- summary(rsf1)$coef
+x <- exp(modcoef[1] + (modcoef[2] * newfish$preydiv))
+x <- x / (1 + x)
+newfish$rsf_prediction <-range01(x)
+
+# plot
+map_RSF <- ggplot() + 
+  geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
+  scale_fill_viridis(option = "mako", name = "RSF prediction", limits = c(0, 0.3)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+map_RSF
+
+```
+
+#2. SSF
+```{r}
+NA
+```
+
+#3. HMM
+```{r}
+x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(preydiv = newfish$preydiv)))
+newfish$hmm_state1 <- x$state.1
+newfish$hmm_state2 <- x$state.2
+newfish$hmm_state3 <- x$state.3 
+
+newfish_long <- newfish %>%
+  pivot_longer(cols = hmm_state1:hmm_state3, 
+               names_to = "model", values_to = "prediction") %>%
+  mutate(across(model, factor, levels=c("hmm_state1", "hmm_state2", "hmm_state3")))
+
+map_HMM <- ggplot() + 
+  geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
+  scale_fill_viridis(option = "mako", limits = c(0,1)) +
+  labs(fill = 'HMM predicted\nprobability') +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  facet_wrap(~model, labeller = as_labeller(c('hmm_state1' = "Localized search",
+                                              'hmm_state2' = "Area-restricted search",
+                                              'hmm_state3' = "Travel")))
+map_HMM
+```
+
+
+# Plot prey div vs probability of selection
+#1. RSF
+#2. SSF
+```{r}
+# prep the fish data
+newfish <- fish_raster %>%
+  rasterToPoints() %>%
+  as.data.frame() %>%
+  filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
+
+# Make a base data.frame to create x1 and x2 from:
+# Start with all the combinations of arccod, capelin, and nsandlance
+base <- newfish %>% 
+  #  (note, it doesn't matter what values you pick for sl_ and ta_)
+  mutate(log_sl = log(45),
+         cos_ta = cos(1))
+
+# Now we can create x1 and x2, with the only difference being map = 1 in x1
+# and map = 0 in x2.
+x1 <- base 
+
+x2 <- base  %>% 
+  mutate(preydiv = mean(base$preydiv))
+
+# So how do we iterate this? We could use a for loop, we could use lapply, etc.
+# I will use lapply here, with a custom function inside.
+
+log_rss_list <- lapply(1:nrow(x1), function(i) {
+  # Report status
+  cat(i, "of", nrow(x1), "\n")
+  # Calculate log-RSS for that row
+  xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# We now have a list with an element for each row. We can combine those rows
+# into a single data.frame with 'dplyr::bind_rows()'
+res <- dplyr::bind_rows(log_rss_list)
+
+# This object is ready for plotting. For example:
+ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
+  xlab("Prey diversity") +
+  ylab("log-RSS vs Mean Prey Diversity")
+  
+
+```
+
+
+```{r}
+
+
+# range function
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 # PREDICTIONS
 #-------------------------- RSF
 modcoef <- summary(rsf1)$coef
-x <- exp(modcoef[1] + 
-           (modcoef[2] * newfish$capelin) + 
-           (modcoef[3] * newfish$arccod) + 
-           (modcoef[4] * newfish$nsandlance))
+x <- exp(modcoef[1] + (modcoef[2] * newfish$preydiv))
 x <- x / (1 + x)
 newfish$rsf_prediction <- range01(x)
 
 #-------------------------- SSF
-ssf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ # the GLM function returns the coefficients in an easier-to-wrangle format
-              capelin + arccod + nsandlance + 
-              strata(step_id_),
+# refit the model using the GLM function, which returns the coefficients in an easier-to-wrangle format
+ssf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ 
+              preydiv + + log_sl + cos_ta + strata(step_id_),
       family = "binomial",
       data = data_ssf)
-
 modcoef <- summary(ssf2)$coef 
 x <- exp(modcoef[1] + 
            (modcoef[2] * newfish$capelin) + 
