@@ -117,32 +117,42 @@ summary(rsf1)
 #2. SSF
 Fit using amt (Signer et al. 2019)
 ```{r, message = FALSE}
-# generate availabilty sample
+
+# generate availability sample
 set.seed(2023)
 data_ssf <- seal %>%
-  make_track(x, y, date) %>%
+  make_track(lon, lat, date) %>%
   steps() %>%
-  random_steps(n_control = 10) %>%
+  random_steps() %>% # default is ten times as many available points as observed points
   arrange(case_)
 
-# plot used vs available
-ggplot() + 
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group)) +
-  geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_)) + 
-  geom_path(data=seal, aes(x=x, y=y)) + 
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+# plot used vs available locations
+sealfishmap +
+  geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.6) +
+  scale_color_manual(values = c("black", "#FCEEAE"), 
+                     label = c("Available", "Observed"), name = "Data type") 
 
-# extract fish covariates
+# extract prey diversity covariate
 data_ssf <- data_ssf %>%
   extract_covariates(fish_raster)
 
-# fit ssf
+# transform movement covariates
+data_ssf <- data_ssf %>%
+  mutate(cos_ta = cos(ta_),
+         log_sl = log(sl_))
+
+# fit ssfs
+## ssf1: ssf without covariate affecting movement kernel
 ssf1 <- data_ssf %>%
-  fit_clogit(case_ ~ capelin + arccod + nsandlance + 
-               strata(step_id_))
+  fit_clogit(case_ ~ preydiv + log_sl + cos_ta + strata(step_id_))
+
+## ssf2: ssf with covariate affecting movement kernel
+ssf2 <- data_ssf %>%
+  fit_clogit(case_ ~ log_sl * preydiv + cos_ta * preydiv + strata(step_id_))
 
 # see parameter estimates
 summary(ssf1)
+summary(ssf2)
 ```
 
 # 3. iSSF
