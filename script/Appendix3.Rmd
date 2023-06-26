@@ -26,32 +26,21 @@ library(rgdal)
 library(raster)
 library(amt)
 library(momentuHMM)
+library(viridis)
 ```
 
 ## Fish data
 
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
+
 fish <- read.csv("preydiv.csv")
 head(fish)
-
-
-ggplot() + 
-  geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 
 ```
 
 Visualize the fish data.
 ```{r, message = FALSE}
-# prepare fish data
-## long data frame
-fishl <- fish %>%
-  tidyr::pivot_longer(cols = c(capelin, arccod, nsandlance), names_to = "species", values_to = "biomass")
-
-## raster
-fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
 
 #prepare world data
 ## List of azimuthal equal area - HudsonBay 
@@ -61,10 +50,10 @@ nat_trans <- spTransform(natearth,CRS("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y
 
 #plot fish map, note that the scale is the same for each prey
 ggplot() + 
-  geom_tile(data = fishl, aes(x = x,y = y,fill = biomass)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
-  facet_grid(.~species)
+  geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv), color = "white") +
+  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 ```
 
 
@@ -112,6 +101,8 @@ ggplot() +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 
 # extract fish covariates
+## first rasterize prey data
+fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
 
