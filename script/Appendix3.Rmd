@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Overview
 
-This document contains the code from "*Statistical methods for species-habitat association using animal movement data*". This code includes the case study analysis on ringed seal movement in eastern Hudson Bay, Canada.
+This document contains the code from "*A comparison of statistical models used to characterize species-habitat associations with movement data*". This code includes the case study analysis on ringed seal movement in eastern Hudson Bay, Canada.
 
 # Prepare
 ## Load packages
