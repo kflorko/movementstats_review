@@ -48,12 +48,13 @@ natearth <- ne_countries(scale = "medium",returnclass = "sp")
 natearth <- natearth[which(natearth$continent!="Antarctica"),]
 nat_trans <- spTransform(natearth,CRS("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-#plot fish map, note that the scale is the same for each prey
-ggplot() + 
-  geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv), color = "white") +
+# plot fish map
+fishmap <- ggplot() + 
+  geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv)) +
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+fishmap
 ```
 
 
@@ -65,22 +66,20 @@ Next we load in the seal movement data. This is a subset of the data from Florko
 seal <- read.csv("seal_track_m.csv") 
 head(seal)
 
-```
-
-Visualize the fish data.
-```{r}
 # ensure the data is in the correct format
 seal <- seal %>%
   mutate(id = as.character(id),
-         date = ymd_hms(date)) 
+         date = as.Date(date)) 
+```
+
+Visualize the seal data on top of the fish data.
+```{r}
 
 # plot
-ggplot() + 
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group)) +
-  geom_point(data=seal, aes(x=x, y=y)) + 
-  geom_path(data=seal, aes(x=x, y=y)) + 
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), 
-                  expand = F) 
+fishmap + 
+  geom_point(data=seal, aes(x=lon, y=lat), alpha = 0.6, color = "#FCEEAE") + 
+  geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") 
+
 ```
 
 # Fit models
