@@ -223,27 +223,6 @@ hmmstate_plot <- ggplot() +
 hmmstate_plot
 
 
-# plot stationary probabilities
-ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
-state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
-state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
-state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
-
-pdat <- rbind(state1, state2, state3) %>%
-  mutate(state = as.character(state)) 
-
-hmmprobs_plot <- ggplot() + 
-  geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
-  geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
-              alpha = 0.4, show.legend = TRUE) +
-  ylab("Stationary state probabilties") +
-  xlab("Prey diversity") +
-  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
-    scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) 
-
-
 #---------------------PLOT HISTOGRAMS
 
 ## prep data in lat/lon and refit model (so step length is in kilometers)
@@ -560,6 +539,32 @@ ggplot() +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   facet_wrap(~model) 
 ```
+
+#3. HMM
+```{r}
+# plot stationary probabilities
+ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
+state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
+state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
+state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
+
+pdat <- rbind(state1, state2, state3) %>%
+  mutate(state = as.character(state)) 
+
+hmmprobs_plot <- ggplot() + 
+  geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
+  geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
+              alpha = 0.4, show.legend = TRUE) +
+  ylab("Stationary state probabilties") +
+  xlab("Prey diversity") +
+  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
+    scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) 
+
+hmmprobs_plot
+```
+
 
 
 # References 
