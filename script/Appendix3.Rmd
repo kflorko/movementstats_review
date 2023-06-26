@@ -429,6 +429,38 @@ map_HMM
 
 # Plot prey div vs probability of selection
 #1. RSF
+```{r}
+pred <- data.frame(preydiv = ps$preydiv$'state 1'$cov)
+
+rsf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ 
+            preydiv,
+            family = "binomial",
+            data = data_rsf)
+
+preds <- predict(rsf2, 
+                 newdata = pred, 
+                 type = "response", 
+                 se.fit = TRUE)
+
+# calculate se
+critval <- 1.96 ## approx 95% CI 
+preds$upr <- preds$fit + (critval * preds$se.fit)
+preds$lwr <- preds$fit - (critval * preds$se.fit)
+
+# combine data frame
+preds2 <- data.frame(preydiv = pred$preydiv,
+                     model = "rsf",
+                     fit = preds$fit, 
+                     se = preds$fit - preds$upr)
+
+# plot to make sure it looks right
+ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_point() +  
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) 
+
+```
+
+
+
 #2. SSF
 ```{r}
 # prep the fish data
@@ -474,71 +506,8 @@ ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
   xlab("Prey diversity") +
   ylab("log-RSS vs Mean Prey Diversity")
   
-
 ```
 
-
-```{r}
-
-
-# range function
-range01 <- function(x){(x-min(x))/(max(x)-min(x))}
-
-# PREDICTIONS
-#-------------------------- RSF
-modcoef <- summary(rsf1)$coef
-x <- exp(modcoef[1] + (modcoef[2] * newfish$preydiv))
-x <- x / (1 + x)
-newfish$rsf_prediction <- range01(x)
-
-#-------------------------- SSF
-# refit the model using the GLM function, which returns the coefficients in an easier-to-wrangle format
-ssf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ 
-              preydiv + + log_sl + cos_ta + strata(step_id_),
-      family = "binomial",
-      data = data_ssf)
-modcoef <- summary(ssf2)$coef 
-x <- exp(modcoef[1] + 
-           (modcoef[2] * newfish$capelin) + 
-           (modcoef[3] * newfish$arccod) + 
-           (modcoef[4] * newfish$nsandlance)) 
-x <- x / (1 + x)
-newfish$ssf_prediction <- range01(x)
-
-#-------------------------- iSSF
-issf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ # the GLM function returns the coefficients in an easier-to-wrangle format
-               capelin + arccod + nsandlance + cos_ta + log_sl +
-               strata(step_id_), 
-      family = "binomial", 
-      data = data_issf)
-
-modcoef <- summary(issf2)$coef
-x <- exp(modcoef[1] + 
-           (modcoef[2] * newfish$capelin) + 
-           (modcoef[3] * newfish$arccod) + 
-           (modcoef[4] * newfish$nsandlance)) # **MARIE** I'm not sure how to incorporate step length and turning angle
-x <- x / (1 + x)
-newfish$issf_prediction <- range01(x)
-
-#-------------------------- HMM
-# grab stationary probabilities
-x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(capelin = newfish$capelin, arccod = newfish$arccod, nsandlance = newfish$nsandlance)))
-newfish$hmm_state1 <- x$state.1
-newfish$hmm_state2 <- x$state.2
-newfish$hmm_state3 <- x$state.3 
-
-#-------------------------- all together plot
-newfish_long <- newfish %>%
-  pivot_longer(cols = rsf_prediction:hmm_state3, 
-               names_to = "model", values_to = "prediction") %>%
-  mutate(across(model, factor, levels=c("rsf_prediction","ssf_prediction","issf_prediction", "hmm_state1", "hmm_state2", "hmm_state3")))
-  
-ggplot() + 
-  geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
-  facet_wrap(~model) 
-```
 
 #3. HMM
 ```{r}
@@ -563,6 +532,7 @@ hmmprobs_plot <- ggplot() +
                      labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) 
 
 hmmprobs_plot
+
 ```
 
 
