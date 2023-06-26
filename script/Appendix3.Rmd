@@ -155,54 +155,37 @@ summary(ssf1)
 summary(ssf2)
 ```
 
-# 3. iSSF
-Fit using amt (Signer et al. 2019)
-```{r}
-# transform movement covariates
-data_issf <- data_ssf %>%
-  mutate(cos_ta = cos(ta_),
-         log_sl = log(sl_))
-
-# fit ssf
-issf1 <- data_issf %>%
-  fit_clogit(case_ ~ capelin + arccod + nsandlance +
-               log_sl + cos_ta +
-               strata(step_id_))
-
-# see parameter estimates
-summary(issf1)
-```
 
 #4. HMM
 Fit using momentuHMM (McClintock and Michelot, 2018)
 ```{r, message = FALSE}
 # prepare dataset
 data_hmm <- seal %>%
-  make_track(x, y, date) %>%
+  make_track(lon, lat, date) %>%
   extract_covariates(fish_raster) %>%
-    mutate(ID = 1,
+  mutate(ID = 1,
          x = x_,
          y = y_,
          date = t_) %>%
-  dplyr::select(ID, x, y, date, capelin, arccod, nsandlance) %>%
+  dplyr::select(ID, x, y, date, preydiv) %>%
   as.data.frame()
 
 # convert into momentuHMM format
 data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("x", "y"), 
                                  type = "UTM",
-                                 covNames = c("capelin", "arccod", "nsandlance"))
+                                 covNames = c("preydiv"))
 
 # define initial parameters
 nbStates <- 3 # number of states
 stepDist <- "gamma" # step distribution
 angleDist <- "vm" # turning angle distribution
 
-mu0 <- c(5000, 14000, 40000) # mean step length for each state
-sigma0 <- c(3000,  5000, 4000) # sd step length for each state
+mu0 <- c(5000, 18000, 38000) # mean step length for each state
+sigma0 <- c(5000,  10000, 10000) # sd step length for each state
 stepPar0 <- c(mu0, sigma0) 
-kappa0 <- c(0.35, 0.55, 1.5) # turning angle for each state
+kappa0 <- c(0.35, 0.55, 0.5) # turning angle for each state
 
-formula = ~ capelin + arccod + nsandlance # identify covariates
+formula = ~ preydiv # identify covariates
 
 # fit basic 3-state hmm
 set.seed(2023)
@@ -213,7 +196,7 @@ hmm1 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 # retrieve parameters to refine model
 Par0_hmm1 <- momentuHMM::getPar0(hmm1, formula=formula)
 
-# fit a refined hmm with parameters from above
+# fit a refined hmm with parameters from hhm1
 set.seed(2023)
 hmm2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             dist=list(step=stepDist,angle=angleDist),
@@ -222,12 +205,43 @@ hmm2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             beta0 = Par0_hmm1$beta,
             formula=formula)
 
+# plot decoded states
+data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2))
+hmmstate_plot <- ggplot() + 
+  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
+  geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
+  geom_point(data=data_hmm, aes(x=x, y=y, color = state, shape = state), size=2, alpha = 0.8) + 
+  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), 
+                     labels = c("Localized\nsearch", "Area-restricted\nsearch", "Travelling"), 
+                     name = "HMM state") +
+  scale_shape_manual(values = c(15, 16, 17), 
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling"), 
+                     name = "HMM state") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
+hmmstate_plot
 
-# plot model
-plot(hmm2)
 
-# plot stationary probabilities for each prey
-momentuHMM::plotStationary(hmm2, plotCI= TRUE)
+# plot stationary probabilities
+ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
+state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
+state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
+state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
+
+pdat <- rbind(state1, state2, state3) %>%
+  mutate(state = as.character(state)) 
+
+hmmprobs_plot <- ggplot() + 
+  geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
+  geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
+              alpha = 0.4, show.legend = TRUE) +
+  ylab("Stationary state probabilties") +
+  xlab("Prey diversity") +
+  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+    scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) 
+
 ```
 
 # Plot prediction maps
