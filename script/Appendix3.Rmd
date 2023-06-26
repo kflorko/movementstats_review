@@ -76,9 +76,11 @@ Visualize the seal data on top of the fish data.
 ```{r}
 
 # plot
-fishmap + 
+sealfishmap <- fishmap + 
   geom_point(data=seal, aes(x=lon, y=lat), alpha = 0.6, color = "#FCEEAE") + 
   geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") 
+
+sealfishmap
 
 ```
 
@@ -89,25 +91,24 @@ Fit using amt (Signer et al. 2019)
 # generate availability sample
 set.seed(2023)
 data_rsf <- seal %>%
-  make_track(x, y, date) %>%
+  make_track(lon, lat, date) %>%
   random_points() # default is ten times as many available points as observed points
 
-# plot used vs available
-ggplot() + 
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group)) +
-  geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_)) + 
-  geom_path(data=seal, aes(x=x, y=y)) + 
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+# plot used vs available locations
+sealfishmap +
+  geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_), alpha = 0.6) +
+  scale_color_manual(values = c("black", "#FCEEAE"), 
+                     label = c("Available", "Observed"), name = "Data type") 
 
-# extract fish covariates
-## first rasterize prey data
+# rasterize and extract prey diversity covariate
 fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
 
 # fit rsf
 rsf1 <- data_rsf %>%
-  amt::fit_rsf(case_ ~ capelin + arccod + nsandlance, model = TRUE)
+  amt::fit_rsf(case_ ~ preydiv, model = TRUE)
 
 # see parameter estimates
 summary(rsf1)
