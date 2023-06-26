@@ -27,6 +27,7 @@ library(raster)
 library(amt)
 library(momentuHMM)
 library(viridis)
+library(sf)
 ```
 
 ## Fish data
@@ -156,7 +157,7 @@ summary(ssf2)
 ```
 
 
-#4. HMM
+#3. HMM
 Fit using momentuHMM (McClintock and Michelot, 2018)
 ```{r, message = FALSE}
 # prepare dataset
@@ -242,6 +243,148 @@ hmmprobs_plot <- ggplot() +
     scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
                      labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) 
 
+
+#---------------------PLOT HISTOGRAMS
+
+## prep data in lat/lon and refit model (so step length is in kilometers)
+data_hmm <- seal %>%
+  make_track(lon, lat, date) %>%
+  extract_covariates(fish_raster) %>%
+    mutate(ID = 1,
+         x = x_,
+         y = y_,
+         date = t_) %>%
+  dplyr::select(ID, x, y, date, preydiv) %>%
+  as.data.frame() %>%
+  st_as_sf(coords = c("x", "y")) %>%
+  st_set_crs("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0") %>%
+  st_transform("+proj=longlat +datum=WGS84") %>%
+  mutate(long = unlist(map(geometry,1)),
+          lat = unlist(map(geometry,2))) %>%
+  st_drop_geometry()
+
+# do momentuhmm which calculates step length in KM
+data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type = "LL", covNames = c("preydiv"))
+
+hist(data_hmm$step)
+
+# define parameters
+nbStates <- 3
+stepDist <- "gamma" # step distribution
+angleDist <- "vm" # turning angle distribution
+
+mu0 <- c(5, 12, 38)
+sigma0 <- c(3, 5, 8)
+stepPar0 <- c(mu0, sigma0)
+kappa0 <- c(0.35, 0.55, 0.5)
+
+set.seed(2023)
+hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=list(step=stepPar0,angle=kappa0))
+
+# get starting parameters 
+Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
+
+# fit hmm with formula
+set.seed(2023)
+hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=Par0_hmm1_km$Par,
+            delta0 = Par0_hmm1_km$delta, 
+            beta0 = Par0_hmm1_km$beta,
+            formula=formula)
+
+# add the state estimate from the HMM
+data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2_km))
+plot(hmm2_km)
+
+##-----STEP DIST histogram
+
+#calculate frequencies of states
+v <- momentuHMM::viterbi(hmm2_km)
+stateFreq <- table(v) / length(v)
+
+#plot colours
+colours.states <- c("#99DDB6", "#539D9C", "#312C66")
+
+#generate sequence for x axis of density functions
+x <- seq(0, 50, length=1000)
+
+#get converged mean and sd for each state 
+meanARS <- hmm2_km$mle$step[1,1]  
+sdARS <- hmm2_km$mle$step[2,1]    
+
+meanCR <- hmm2_km$mle$step[1,2]    
+sdCR <- hmm2_km$mle$step[2,2]     
+
+meanTR <- hmm2_km$mle$step[1,3]    
+sdTR <- hmm2_km$mle$step[2,3]    
+
+#calculate shape and scale of the gamma distributions from mean and sd
+sh <- function(mean, sd) { return(mean^2 / sd^2)}
+sc <- function(mean, sd) { return(sd^2 / mean)}
+
+#get density functions of the distributions
+y_ARS <- dgamma(x, shape=sh(meanARS,sdARS),  scale=sc(meanARS,sdARS)) * stateFreq[[1]]
+y_CR <- dgamma(x, shape=sh(meanCR,sdCR),  scale=sc(meanCR,sdCR)) * stateFreq[[2]]
+y_TR <- dgamma(x, shape=sh(meanTR,sdTR),  scale=sc(meanTR,sdTR)) * stateFreq[[3]]
+
+
+#combine densities in a single dataframe for more convenient plotting
+df.y_ARS <- data.frame(dens=y_ARS, State="Foraging", x=x)
+df.y_CR <- data.frame(dens=y_CR,  State="ARS", x=x)
+df.y_TR <- data.frame(dens=y_TR,  State="Travelling", x=x)
+statedis <- rbind(df.y_ARS, df.y_CR, df.y_TR)
+
+#plot distributions
+hmmstepdist_plot <- ggplot() +
+  geom_line(data=statedis,aes(x=x,y=dens,colour=State,linetype=State), size=1.2) +
+  scale_colour_manual(values=c(colours.states,"#000000"), 
+              breaks = c('Foraging', 'ARS', 'Travelling'), 
+              labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+  scale_linetype_manual(values=c("solid","solid", "solid"), 
+              breaks = c('Foraging', 'ARS', 'Travelling'), 
+              labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+  ylab("Density") + 
+  xlab("Step length (kms)") 
+hmmstepdist_plot
+
+##-----ANGLE DIST
+# #generate sequence for x axis of density functions
+x <- seq(-pi, pi,length=1000)
+
+#get converged mean and concentration for each state 
+meanARS <- hmm2_km$mle$angle[1,1]  
+sdARS <- hmm2_km$mle$angle[2,1]    
+
+meanCR <- hmm2_km$mle$angle[1,2]    
+sdCR <- hmm2_km$mle$angle[2,2]  
+
+meanTR <- hmm2_km$mle$angle[1,3]    
+sdTR <- hmm2_km$mle$angle[2,3]  
+
+#get density functions of the distributions
+y_ARS <- CircStats::dvm(x, mu=meanARS,  kappa=sdARS) * stateFreq[[1]]
+y_CR <- CircStats::dvm(x, mu=meanCR,  kappa=sdCR) * stateFreq[[2]]
+y_TR <- CircStats::dvm(x, mu=meanTR,  kappa=sdTR) * stateFreq[[3]]
+
+
+#combine densities in a single dataframe for more convenient plotting
+df.y_ARS <- data.frame(dens=y_ARS, State="Foraging",x=x)
+df.y_CR <- data.frame(dens=y_CR,  State="ARS",x=x)
+df.y_TR <- data.frame(dens=y_TR,  State="Travelling",x=x)
+
+cmb <- rbind(df.y_TR, df.y_CR, df.y_ARS)
+
+#plot distributions
+hmmangledist_plot <- ggplot() +
+  geom_line(data=cmb,aes(x=x,y=dens,colour=State), size = 1.2) +
+  scale_colour_manual(values=c(colours.states), breaks = c('Foraging', 'ARS', 'Travelling'), labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+  scale_x_continuous(limits=c(-pi,pi))+
+  ylab("Density") + 
+  xlab("Turn angle (radians) ") 
+hmmangledist_plot
 ```
 
 # Plot prediction maps
