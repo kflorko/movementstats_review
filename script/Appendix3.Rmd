@@ -399,7 +399,57 @@ map_RSF
 
 #2. SSF
 ```{r}
-#NA
+#### ATTEMPT JUNE 27
+# movement_kernel function
+
+# habitat_kernel function
+
+data_ssf$case_ <- as.integer(as.logical(data_ssf$case_))
+ssffit <- data_ssf %>% 
+  fit_issf(case_ ~ preydiv +log_sl + cos_ta + strata(step_id_))
+
+sl_char <- amt::sl_distr(filter(data_ssf, case_ == 1))
+
+mk <- movement_kernel(
+  shape = sl_char$params$shape, 
+  scale = sl_char$params$scale, 
+  template = fish_raster$preydiv)
+plot(mk)
+
+hk <- habitat_kernel(
+  coef = coef(ssffit)["preydiv"], 
+  resources = fish_raster$preydiv)
+plot(hk)
+
+ssud_day <- simulate_ud(movement_kernel = mk,
+                        habitat_kernel = hk,
+                        start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
+                        n = 1e7)
+ssud_day <- as.data.frame(ssud_day, xy=TRUE)
+
+# nicer plot
+map_SSF_withmvmt <- ggplot() + 
+  geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
+  scale_fill_viridis(option = "mako", name = "SSF Probability\n(with movement*prey)\n") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
+map_SSF_withmvmt
+
+
+
+ssud_day <- simulate_ud(movement_kernel = hk,
+                        habitat_kernel = hk,
+                        start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
+                        n = 1e7)
+ssud_day <- as.data.frame(ssud_day, xy=TRUE)
+
+# nicer plot
+map_SSF_withoutmvmt <- ggplot() + 
+  geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
+  scale_fill_viridis(option = "mako", name = "SSF Probability\n(without movement*prey)\n") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
+map_SSF_withoutmvmt
 ```
 
 #3. HMM
@@ -565,55 +615,43 @@ speeds <- c(1, 2, 3)
 # create empty list
 grab = list()
 for(speed.i in unique(speeds)){
-
-  predsk <- predict(ssf2_m, 
+  
+ # predict new data
+  preds <- predict(ssf2_m, 
           newdata = data.frame(
             preydiv = pred$preydiv,
-            log_sl = log(Par0_hmm1$Par$step[speed.i]), # SLOW SL
-            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean TA
+            log_sl = log(Par0_hmm1$Par$step[speed.i]), # set speed
+            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean turning angle 
             step_id_ = 1), 
           se.fit = TRUE)
   
  # calculate se
   critval <- 1.96 ## approx 95% CI 
-  predsk$upr <- predsk$fit + (critval * predsk$se.fit)
-  predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
- 
-  
+  preds$upr <- preds$fit + (critval * preds$se.fit)
+  preds$lwr <- preds$fit - (critval * preds$se.fit)
   
   # combine data frame
-  preds2_SL_slow <- data.frame(preydiv = pred$preydiv,
-                     model = "rsf_SL_slow",
+  preds_speed <- data.frame(preydiv = pred$preydiv,
+                     rsf_speed = speed.i,
                      fit = predsk$fit, 
                      se = predsk$fit - predsk$upr)
 
-# determine the step lengths with different behaviours (from hmm) to set "slow", "moderate", and "fast" speeds/step lengths for prediction
-pred <- pred %>%
-  mutate(log_sl_slow = log(Par0_hmm1$Par$step[1]),
-         log_sl_mod = log(Par0_hmm1$Par$step[2]),
-         log_sl_fast = log(Par0_hmm1$Par$step[3]),
-         log_sl_mean = log(mean(na.omit(data_hmm$step))))
+ # output
+  grab[[speed.i]] <- preds_speed
+}
 
-##-- 1. slow movement
-predsk <- predict(ssf2_m, 
-          newdata = data.frame(
-            preydiv = pred$preydiv,
-            log_sl = log(Par0_hmm1$Par$step[1]), # SLOW SL
-            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean TA
-            step_id_ = 1), 
-          se.fit = TRUE)
+resultdf <- bind_rows(grab) %>%
+  as_tibble() %>%
+  mutate(rsf_speed = as.factor(rsf_speed))
 
-# calculate se
-critval <- 1.96 ## approx 95% CI 
-predsk$upr <- predsk$fit + (critval * predsk$se.fit)
-predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
+ggplot() +
+  geom_line(data=resultdf, aes(x=preydiv,y=fit, color = rsf_speed)) +  
+  geom_ribbon(data=resultdf, aes(ymin=fit-se, ymax=fit+se, x=preydiv, fill= rsf_speed), alpha = 0.3) +
+  ylab("SSF Prediction") + xlab("Prey diversity")
 
 
-# combine data frame
-preds2_SL_slow <- data.frame(preydiv = pred$preydiv,
-                     model = "rsf_SL_slow",
-                     fit = predsk$fit, 
-                     se = predsk$fit - predsk$upr)
+
+
 
 
 
