@@ -399,7 +399,7 @@ map_RSF
 
 #2. SSF
 ```{r}
-NA
+#NA
 ```
 
 #3. HMM
@@ -454,8 +454,10 @@ preds2 <- data.frame(preydiv = pred$preydiv,
                      se = preds$fit - preds$upr)
 
 # plot to make sure it looks right
-ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_point() +  
-  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) 
+ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_line() +  
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) +
+  ylab("RSF prediction") +
+  xlab("Prey diversity")
 
 ```
 
@@ -504,8 +506,117 @@ ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
   xlab("Prey diversity") +
-  ylab("log-RSS vs Mean Prey Diversity")
+  ylab("log-RSS vs Mean Prey Diversity") + 
+  ylim(-1.5,1) + xlim(0.55, 0.7)
   
+
+
+
+
+
+
+
+### ATTEMPT JUNE 26 2023
+
+###----- SSF without prey diversity affecting movement
+
+# refit in survival
+ssf1_m <- survival::clogit(case_ ~ 
+             preydiv + log_sl + cos_ta + strata(step_id_), 
+             data = data_ssf)
+
+predsk <- predict(ssf1_m, 
+          newdata = data.frame(
+            preydiv = pred$preydiv,
+            log_sl = log(mean(na.omit(data_hmm$step))), # mean SL
+            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean TA
+            step_id_ = 1), 
+          se.fit = TRUE)
+
+# calculate se
+critval <- 1.96 ## approx 95% CI 
+predsk$upr <- predsk$fit + (critval * predsk$se.fit)
+predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
+
+# combine data frame
+preds2k <- data.frame(preydiv = pred$preydiv,
+                     model = "rsf",
+                     fit = predsk$fit, 
+                     se = predsk$fit - predsk$upr)
+
+# plot 
+ggplot(data=preds2k, mapping=aes(x=preydiv,y=fit)) + geom_line() +  
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) +
+  ylab("SSF Prediction") + xlab("Prey diversity")
+
+
+###----- SSF with prey diversity affecting movement
+
+# refit in survival
+ssf2_m <- survival::clogit(case_ ~ 
+             preydiv*log_sl + preydiv*cos_ta + strata(step_id_), 
+             data = data_ssf)
+
+
+# define number of availability points per one used point
+speeds <- c(1, 2, 3)
+
+
+# create empty list
+grab = list()
+for(speed.i in unique(speeds)){
+
+  predsk <- predict(ssf2_m, 
+          newdata = data.frame(
+            preydiv = pred$preydiv,
+            log_sl = log(Par0_hmm1$Par$step[speed.i]), # SLOW SL
+            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean TA
+            step_id_ = 1), 
+          se.fit = TRUE)
+  
+ # calculate se
+  critval <- 1.96 ## approx 95% CI 
+  predsk$upr <- predsk$fit + (critval * predsk$se.fit)
+  predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
+ 
+  
+  
+  # combine data frame
+  preds2_SL_slow <- data.frame(preydiv = pred$preydiv,
+                     model = "rsf_SL_slow",
+                     fit = predsk$fit, 
+                     se = predsk$fit - predsk$upr)
+
+# determine the step lengths with different behaviours (from hmm) to set "slow", "moderate", and "fast" speeds/step lengths for prediction
+pred <- pred %>%
+  mutate(log_sl_slow = log(Par0_hmm1$Par$step[1]),
+         log_sl_mod = log(Par0_hmm1$Par$step[2]),
+         log_sl_fast = log(Par0_hmm1$Par$step[3]),
+         log_sl_mean = log(mean(na.omit(data_hmm$step))))
+
+##-- 1. slow movement
+predsk <- predict(ssf2_m, 
+          newdata = data.frame(
+            preydiv = pred$preydiv,
+            log_sl = log(Par0_hmm1$Par$step[1]), # SLOW SL
+            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean TA
+            step_id_ = 1), 
+          se.fit = TRUE)
+
+# calculate se
+critval <- 1.96 ## approx 95% CI 
+predsk$upr <- predsk$fit + (critval * predsk$se.fit)
+predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
+
+
+# combine data frame
+preds2_SL_slow <- data.frame(preydiv = pred$preydiv,
+                     model = "rsf_SL_slow",
+                     fit = predsk$fit, 
+                     se = predsk$fit - predsk$upr)
+
+
+
 ```
 
 
