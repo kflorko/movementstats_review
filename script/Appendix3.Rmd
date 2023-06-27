@@ -399,35 +399,60 @@ map_RSF
 
 #2. SSF
 ```{r}
-#### ATTEMPT JUNE 27
-# movement_kernel function
 
-# habitat_kernel function
+##---- ssf1: ssf without covariate affecting movement kernel
 
-data_ssf$case_ <- as.integer(as.logical(data_ssf$case_))
-ssffit <- data_ssf %>% 
-  fit_issf(case_ ~ preydiv +log_sl + cos_ta + strata(step_id_))
+# define habitat kernel
+hk <- habitat_kernel(
+  coef = coef(ssf1)["preydiv"], 
+  resources = fish_raster$preydiv)
 
-sl_char <- amt::sl_distr(filter(data_ssf, case_ == 1))
+# simulate utlization distribution
+ssud_day <- simulate_ud(movement_kernel = hk,
+                        habitat_kernel = hk,
+                        start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
+                        n = 1e7)
 
+# convert to dataframe
+ssud_day <- as.data.frame(ssud_day, xy=TRUE)
+
+# plot
+map_SSF_withoutmvmt <- ggplot() + 
+  geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
+  scale_fill_viridis(option = "mako", name = "SSF Probability\n(without movement*prey)\n") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
+map_SSF_withoutmvmt
+
+
+##---- ssf1: ssf with covariate affecting movement kernel
+
+# grab step data
+sl_char <- amt::sl_distr(filter(data_ssf, case_ == "TRUE"))
+
+# define movement kernel
 mk <- movement_kernel(
   shape = sl_char$params$shape, 
   scale = sl_char$params$scale, 
   template = fish_raster$preydiv)
 plot(mk)
 
+# define habitat kernel
 hk <- habitat_kernel(
-  coef = coef(ssffit)["preydiv"], 
+  coef = coef(ssf2)["preydiv"], 
   resources = fish_raster$preydiv)
 plot(hk)
 
+# simulate utlization distribution
 ssud_day <- simulate_ud(movement_kernel = mk,
                         habitat_kernel = hk,
                         start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
                         n = 1e7)
+
+# convert to dataframe
 ssud_day <- as.data.frame(ssud_day, xy=TRUE)
 
-# nicer plot
+# plot
 map_SSF_withmvmt <- ggplot() + 
   geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
   scale_fill_viridis(option = "mako", name = "SSF Probability\n(with movement*prey)\n") +
@@ -437,19 +462,6 @@ map_SSF_withmvmt
 
 
 
-ssud_day <- simulate_ud(movement_kernel = hk,
-                        habitat_kernel = hk,
-                        start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
-                        n = 1e7)
-ssud_day <- as.data.frame(ssud_day, xy=TRUE)
-
-# nicer plot
-map_SSF_withoutmvmt <- ggplot() + 
-  geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
-  scale_fill_viridis(option = "mako", name = "SSF Probability\n(without movement*prey)\n") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
-map_SSF_withoutmvmt
 ```
 
 #3. HMM
