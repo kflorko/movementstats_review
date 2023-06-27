@@ -661,9 +661,52 @@ ggplot() +
 
 
 
+### ATTEMPT JUNE 27 afternoon
+# Grab the coefficients (b for beta)
+b <- coef(ssf2)
 
 
+# coef for preydiv as a function of log_sl
+coef_log_sl_ <- function(b, log_sl) {
+  
+  res <- b[["log_sl"]] +
+    b[["preydiv"]] +
+    b[["cos_ta"]] +
+    b[["log_sl:preydiv"]] * log_sl +
+    b[["preydiv:cos_ta"]]
+  return(res)
+}
 
+# E.g.,
+coef_log_sl_(b, log_sl = 5)
+
+
+# Start with the combinations of temperature and time of day
+sl_fig <- expand.grid(log_sl = c(5, 7, 9)) %>% 
+  # Calculate the betas for each
+  mutate(beta_log_sl = coef_log_sl_(b, log_sl = log_sl))
+
+
+# For each row, get the updated shape and scale for the selection-free step-length
+# distribution (this function is vectorized)
+sf_dist <- update_gamma(sl_distr(ssf2),
+             beta_sl = sl_fig$beta_sl,
+             beta_log_sl = sl_fig$beta_log_sl)
+
+sl_fig$shape <- sf_dist$params$shape
+sl_fig$scale <-1
+
+# Now get likelihood from gamma distribution for a bunch of possible steps
+preydiv <- seq(0.5, 0.7, length.out = 100)
+sl_fig <- merge(sl_fig, y = data.frame(preydiv = preydiv)) %>% 
+  mutate(like = dgamma(preydiv, shape = shape, scale = scale))
+
+
+# Plot
+ggplot(sl_fig, aes(x = preydiv, y = like, color = factor(log_sl))) +
+  geom_line(size = 0.9) +
+  xlab("Prey Diversity") +
+  ylab("Likelihood") 
 ```
 
 
