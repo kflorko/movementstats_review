@@ -18,7 +18,7 @@ movement_kernel <- function(scale, shape, template, quant = 0.99) {
 }
 
 mk_base <- function(r, res) {
-  xy <- c(0, rep(seq(res, r, res), each = 2) * c(-1, 1))
+  xy <- c(0, rep(seq(res, 50000, res), each = 2) * c(-1, 1))
   mov_kern <- expand.grid(x = xy,
                           y = xy)
   mov_kern$d <- sqrt(mov_kern[, "x"]^2 + mov_kern[, "y"]^2)
@@ -29,9 +29,9 @@ mk_base <- function(r, res) {
   # divided by 2*pi*r, and the resource selection function (exp[beta*X....]). The issue with the delta function
   # arises when r tends to 0. My workaround was to set any r < 1/(2*pi) to 1/(2*pi).
 
-  #mov_kern$d[mov_kern$d < 1 / (2 * pi)] <- 1/(2 * pi) # why 2 * pi?
-  mov_kern$d[mov_kern$d < 1 ] <- 1 # why 2 * pi?
-  mov_kern <- mov_kern[mov_kern$d < r, ]
+  mov_kern$d[mov_kern$d < 1 / (2 * pi)] <- 1/(2 * pi) # why 2 * pi?
+  #mov_kern$d[mov_kern$d < 1 ] <- 1 # why 2 * pi?
+  #mov_kern <- mov_kern[mov_kern$d < r, ]
 
   raster::rasterFromXYZ(mov_kern, res = res)
 
