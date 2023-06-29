@@ -34,7 +34,10 @@ library(sf)
 
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
+# set working directory
 
+
+# load fish data
 fish <- read.csv("preydiv.csv")
 head(fish)
 
@@ -598,15 +601,23 @@ predsk$upr <- predsk$fit + (critval * predsk$se.fit)
 predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
 
 # combine data frame
-preds2k <- data.frame(preydiv = pred$preydiv,
-                     model = "rsf",
+preds2kssf <- data.frame(preydiv = pred$preydiv,
+                     model = "ssf",
                      fit = predsk$fit, 
                      se = predsk$fit - predsk$upr)
 
 # plot 
-ggplot(data=preds2k, mapping=aes(x=preydiv,y=fit)) + geom_line() +  
+ggplot(data=preds2kssf, mapping=aes(x=preydiv,y=fit)) + geom_line() +  
   geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) +
   ylab("SSF Prediction") + xlab("Prey diversity")
+
+
+# combine with RSF plot
+rbind(preds2kssf, preds2) %>%
+  ggplot() + geom_line(aes(x=preydiv, y=fit, color = model)) +
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv, fill = model), 
+              alpha = 0.3) +
+  ylab("Prediction") + xlab("Prey diversity") 
 
 
 ###----- SSF with prey diversity affecting movement
@@ -681,7 +692,7 @@ coef_log_sl_ <- function(b, log_sl) {
 coef_log_sl_(b, log_sl = 5)
 
 
-# Start with the combinations of temperature and time of day
+# Start with the combinations of step lengths
 sl_fig <- expand.grid(log_sl = c(5, 7, 9)) %>% 
   # Calculate the betas for each
   mutate(beta_log_sl = coef_log_sl_(b, log_sl = log_sl))
@@ -712,15 +723,17 @@ ggplot(sl_fig, aes(x = preydiv, y = like, color = factor(log_sl))) +
 
 #3. HMM
 ```{r}
-# plot stationary probabilities
+# grab stationary probabilities
 ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
 state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
 state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
 state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
 
+# bind to one data frame
 pdat <- rbind(state1, state2, state3) %>%
   mutate(state = as.character(state)) 
 
+# plot
 hmmprobs_plot <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
   geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
