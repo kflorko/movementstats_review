@@ -29,6 +29,7 @@ library(momentuHMM)
 library(viridis)
 library(sf)
 library(here)
+library(tidyr)
 ```
 
 ## Fish data
