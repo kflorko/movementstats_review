@@ -53,7 +53,7 @@ nat_trans <- spTransform(natearth,CRS("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y
 
 # plot fish map
 fishmap <- ggplot() + 
-  geom_tile(data = preydiv, aes(x = lon,y = lat,fill = preydiv)) +
+  geom_tile(data = fish, aes(x = lon,y = lat,fill = preydiv)) +
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
@@ -278,7 +278,7 @@ hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
 
 # add the state estimate from the HMM
 data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2_km))
-plot(hmm2_km)
+
 
 ##-----STEP DIST histogram
 
