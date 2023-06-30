@@ -28,17 +28,16 @@ library(amt)
 library(momentuHMM)
 library(viridis)
 library(sf)
+library(here)
 ```
 
 ## Fish data
 
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
-# set working directory
-
 
 # load fish data
-fish <- read.csv("preydiv.csv")
+fish <- read.csv(here("data/preydiv.csv"))
 head(fish)
 
 ```
@@ -67,7 +66,7 @@ fishmap
 Next we load in the seal movement data. This is a subset of the data from Florko et al. (2023).
 ```{r, message = FALSE}
 
-seal <- read.csv("seal_track_m.csv") 
+seal <- read.csv(here("data/seal_track_m.csv")) 
 head(seal)
 
 # ensure the data is in the correct format
