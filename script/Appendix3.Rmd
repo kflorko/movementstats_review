@@ -400,7 +400,7 @@ map_RSF
 ```
 
 #2. SSF
-This is not easily implemented. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud) as shown in Signer et al. 2019. These methods are detailed in Signer et al. 2017.
+This is not easily implemented. Options exist for estimating utilization distribution from a SSF, as detailed in Signer et al. 2017. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud, Signer et al. 2019), but these have since been deprecated.
 ```{r}
 
 ##---- ssf1: ssf without covariate affecting movement kernel
