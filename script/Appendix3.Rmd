@@ -403,6 +403,41 @@ map_RSF
 This is not easily implemented. Options exist for estimating utilization distribution from a SSF, as detailed in Signer et al. 2017. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud, Signer et al. 2019), but these have since been deprecated.
 ```{r}
 
+
+# 1. make_start()
+data_ssf[1,c("x1_","y1_")]
+
+make_start(
+  x = c(0, 0),
+  ta_ = 0,
+  time = Sys.time(),
+  dt = hours(1),
+  crs = NA,
+  ...
+)
+
+rd_k <- redistribution_kernel(
+  x = ssf1,
+  start = make_start(),
+  map,
+  fun = function(xy, map) {
+     extract_covariates(xy, map, where = "both")
+ },
+  covars = NULL,
+  max.dist = get_max_dist(x),
+  n.control = 1e+06,
+  n.sample = 1,
+  stochastic = FALSE,
+  compensate.movement = !stochastic,
+  normalize = TRUE,
+  interpolate = FALSE,
+  as.rast = FALSE,
+  tolerance.outside = 0
+)
+
+
+
+#######----------DEPRECATED WAY
 ##---- ssf1: ssf without covariate affecting movement kernel
 
 # define habitat kernel
@@ -543,6 +578,8 @@ base <- newfish %>%
 # Now we can create x1 and x2, with the only difference being map = 1 in x1
 # and map = 0 in x2.
 x1 <- base 
+#x11 <- x1
+x1$log_sl <- 4
 
 x2 <- base  %>% 
   mutate(preydiv = mean(base$preydiv))
@@ -554,7 +591,7 @@ log_rss_list <- lapply(1:nrow(x1), function(i) {
   # Report status
   cat(i, "of", nrow(x1), "\n")
   # Calculate log-RSS for that row
-  xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
+  xx <- log_rss(ssf2, x1[i,], x2[i,], ci = "se")
   # Return the element $df
   return(xx$df)
 })
@@ -568,8 +605,7 @@ ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
   xlab("Prey diversity") +
-  ylab("log-RSS vs Mean Prey Diversity") + 
-  ylim(-1.5,1) + xlim(0.55, 0.7)
+  ylab("log-RSS vs Mean Prey Diversity") 
   
 
 
@@ -630,7 +666,7 @@ ssf2_m <- survival::clogit(case_ ~
 
 # define number of availability points per one used point
 speeds <- c(1, 2, 3)
-
+speed.i = 1
 
 # create empty list
 grab = list()
@@ -642,7 +678,8 @@ for(speed.i in unique(speeds)){
             preydiv = pred$preydiv,
             log_sl = log(Par0_hmm1$Par$step[speed.i]), # set speed
             cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean turning angle 
-            step_id_ = 1), 
+            #step_id_ = unique(data_ssf$step_id_)[1:101],
+            step_id_ = unique(data_ssf$step_id_)[10]), 
           se.fit = TRUE)
   
  # calculate se
@@ -653,8 +690,8 @@ for(speed.i in unique(speeds)){
   # combine data frame
   preds_speed <- data.frame(preydiv = pred$preydiv,
                      rsf_speed = speed.i,
-                     fit = predsk$fit, 
-                     se = predsk$fit - predsk$upr)
+                     fit = preds$fit, 
+                     se = preds$fit - preds$upr)
 
  # output
   grab[[speed.i]] <- preds_speed
@@ -668,7 +705,6 @@ ggplot() +
   geom_line(data=resultdf, aes(x=preydiv,y=fit, color = rsf_speed)) +  
   geom_ribbon(data=resultdf, aes(ymin=fit-se, ymax=fit+se, x=preydiv, fill= rsf_speed), alpha = 0.3) +
   ylab("SSF Prediction") + xlab("Prey diversity")
-
 
 
 
