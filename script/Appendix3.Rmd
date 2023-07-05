@@ -29,7 +29,6 @@ library(momentuHMM)
 library(viridis)
 library(sf)
 library(here)
-library(tidyr)
 ```
 
 ## Fish data
@@ -401,6 +400,7 @@ map_RSF
 ```
 
 #2. SSF
+This is not easily implemented. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud) as shown in Signer et al. 2019. These methods are detailed in Signer et al. 2017.
 ```{r}
 
 ##---- ssf1: ssf without covariate affecting movement kernel
@@ -757,5 +757,7 @@ Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkow
 Florko, K.R.N., Shuert, C.R., Cheung, W.W.L., Ferguson, S.H., Jonsen, I.D., Rosen, D.A.S., Sumaila, U.R., Tai, T.C., Yurkowski, D.J., Auger-Méthé, M. 2023. Linking movement and dive data to prey distribution models: new insights in foraging behavior and potential pitfalls of movement analyses. Movement Ecology, 11:17 https://doi.org/10.1186/s40462-023-00377-2
 
 McClintock, B.T., Michelot, T. 2018. momentuHMM: R package for generalized hidden markov models of animal movement. Methods Ecol. Evolut. 9, 1518-1530.
+
+Signer, J., Fieberg, J., & Avgar, T. (2017). Estimating utilization distributions from fitted step‐selection functions. Ecosphere, 8(4), e01771.
 
 Signer, J., J. Fieberg, and T. Avgar. 2019. Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution 9:880–890.
