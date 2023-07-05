@@ -23,7 +23,7 @@ library(ggplot2)
 library(lubridate)
 library(rnaturalearth)
 library(rgdal)
-library(raster)
+library(terra)
 library(amt)
 library(momentuHMM)
 library(viridis)
@@ -104,7 +104,7 @@ sealfishmap +
                      label = c("Available", "Observed"), name = "Data type") 
 
 # rasterize and extract prey diversity covariate
-fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+fish_raster <- rast(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
 
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
@@ -403,37 +403,38 @@ map_RSF
 This is not easily implemented. Options exist for estimating utilization distribution from a SSF, as detailed in Signer et al. 2017. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud, Signer et al. 2019), but these have since been deprecated.
 ```{r}
 
+ssf1 <- data_ssf %>%
+  fit_clogit(case_ ~ preydiv + sl_ + cos_ta + strata(step_id_), model = TRUE)
+fish_raster
 
 # 1. make_start()
-data_ssf[1,c("x1_","y1_")]
-
-make_start(
-  x = c(0, 0),
-  ta_ = 0,
-  time = Sys.time(),
+ms <- make_start(
+  x = c(pull(data_ssf[1, "x1_"]), pull(data_ssf[1, "y1_"])),
+  cos_ta = 0,
+  log_sl = 1,
+  time = pull(data_ssf[1, "t1_"]),
   dt = hours(1),
-  crs = NA,
-  ...
-)
+  crs = crs(fish_raster))
 
+# 2. get_max_dis()
+gmd <- get_max_dist(ssf1, p = 0.99)
+
+
+# 3. redistribution_kernel()
 rd_k <- redistribution_kernel(
   x = ssf1,
-  start = make_start(),
-  map,
-  fun = function(xy, map) {
-     extract_covariates(xy, map, where = "both")
- },
+  start = ms,
+  map = fish_raster,
   covars = NULL,
-  max.dist = get_max_dist(x),
+  max.dist = gmd,
   n.control = 1e+06,
   n.sample = 1,
-  stochastic = FALSE,
-  compensate.movement = !stochastic,
-  normalize = TRUE,
+  stochastic = TRUE,
+  compensate.movement = TRUE,
+  normalize = FALSE,
   interpolate = FALSE,
-  as.rast = FALSE,
-  tolerance.outside = 0
-)
+  as.rast = TRUE,
+  tolerance.outside = 0)
 
 
 
