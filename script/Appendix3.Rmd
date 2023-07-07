@@ -104,7 +104,7 @@ sealfishmap +
                      label = c("Available", "Observed"), name = "Data type") 
 
 # rasterize and extract prey diversity covariate
-fish_raster <- rast(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+fish_raster <- terra::rast(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
 
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
@@ -400,8 +400,69 @@ map_RSF
 ```
 
 #2. SSF
-This is not easily implemented. Options exist for estimating utilization distribution from a SSF, as detailed in Signer et al. 2017. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud, Signer et al. 2019), but these have since been deprecated.
+
 ```{r}
+
+#------- my turn
+class(fish_raster) #good
+
+# generate availability sample
+set.seed(2023)
+data_ssf <- seal %>%
+  mutate(date = as.POSIXct(date)) %>%
+  make_track(lon, lat, date) %>%
+  steps() %>%
+  random_steps() %>% 
+  arrange(case_) %>%
+  extract_covariates(fish_raster, where = "both") %>%
+  na.omit()
+
+class(data_ssf)
+head(data_ssf) # should have burst_
+summary(data_ssf)
+
+# fit model
+m1 <- data_ssf |> 
+  fit_clogit(case_ ~ preydiv_end +  preydiv_start:cos(ta_) + 
+               preydiv_start:sl_ + strata(step_id_))
+summary(m1)
+
+
+# Start with simulations
+# First generate a redistribution kernel
+start <- make_start((seal %>%
+                       mutate(date = as.POSIXct(date)) %>%
+                       make_track(lon, lat, date))[1, ]) # This is the starting location (we could sample it randomly from within the area we want to )
+k1 <- redistribution_kernel(m1, map = fish_raster, start = start)
+
+# Now simulate a path of length 30 for 50 times. This will lead a transient UD. For a steady state UD, either increase `n` or choose many more random starting points. 
+n <- 50
+p1 <- replicate(n, simulate_path(x = k1, n = 10, start = start, verbose = TRUE), simplify = FALSE) # Takes about 2 min
+
+uds <- lapply(c(5, 5), function(i) {
+  tibble(
+    rep = 1:n, 
+    path = map(p1, ~ dplyr::slice(.x, i))
+  ) |> unnest(cols = path) |> filter(!is.na(x_)) |> 
+    make_track(x_, y_) |> hr_kde(trast = fish_raster, which_min = "global")
+})
+
+#saveRDS(uds, file="uds.RData") 
+
+terra::plot(hr_ud(uds[[1]]))
+terra::plot(hr_ud(uds[[2]]))
+
+
+
+
+
+
+
+
+
+
+
+
 data_ssf_noNA <- data_ssf[complete.cases(data_ssf),]
 
 ssf1 <- data_ssf_noNA %>%
@@ -584,8 +645,7 @@ ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_line() +
 ```{r}
 # prep the fish data
 newfish <- fish_raster %>%
-  rasterToPoints() %>%
-  as.data.frame() %>%
+  terra::as.data.frame(xy = TRUE) %>%
   filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
 
 # Make a base data.frame to create x1 and x2 from:
@@ -599,7 +659,7 @@ base <- newfish %>%
 # and map = 0 in x2.
 x1 <- base 
 #x11 <- x1
-x1$log_sl <- 4
+x1$log_sl <- 40
 
 x2 <- base  %>% 
   mutate(preydiv = mean(base$preydiv))
@@ -627,6 +687,9 @@ ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
   xlab("Prey diversity") +
   ylab("log-RSS vs Mean Prey Diversity") 
   
+
+
+
 
 
 
