@@ -637,6 +637,43 @@ ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_line() +
   ylab("RSF prediction") +
   xlab("Prey diversity")
 
+
+
+
+
+
+
+### LOG-RSS ROUTE
+x1 <- base 
+
+x2 <- base  %>% 
+  mutate(preydiv = mean(base$preydiv))
+
+# So how do we iterate this? We could use a for loop, we could use lapply, etc.
+# I will use lapply here, with a custom function inside.
+
+log_rss_list <- lapply(1:nrow(x1), function(i) {
+  # Report status
+  cat(i, "of", nrow(x1), "\n")
+  # Calculate log-RSS for that row
+  xx <- log_rss(rsf1, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# We now have a list with an element for each row. We can combine those rows
+# into a single data.frame with 'dplyr::bind_rows()'
+res <- dplyr::bind_rows(log_rss_list)
+
+# PLOT
+ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
+  xlab("Prey diversity") +
+  ylab("log-RSS") 
+
+
+
 ```
 
 
@@ -718,72 +755,6 @@ ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
   ylab("log-RSS") 
   
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### ATTEMPT JUNE 27 afternoon -- prediction for SSF1?
-# Grab the coefficients (b for beta)
-b <- coef(ssf2)
-
-
-# coef for preydiv as a function of log_sl
-coef_log_sl_ <- function(b, log_sl) {
-  
-  res <- b[["log_sl"]] +
-    b[["preydiv"]] +
-    b[["cos_ta"]] +
-    b[["log_sl:preydiv"]] * log_sl +
-    b[["preydiv:cos_ta"]]
-  return(res)
-}
-
-# E.g.,
-coef_log_sl_(b, log_sl = 5)
-
-
-# Start with the combinations of step lengths
-sl_fig <- expand.grid(log_sl = c(4, 5, 6)) %>% 
-  # Calculate the betas for each
-  mutate(beta_log_sl = coef_log_sl_(b, log_sl = log_sl))
-
-
-# For each row, get the updated shape and scale for the selection-free step-length
-# distribution (this function is vectorized)
-sf_dist <- update_gamma(sl_distr(ssf2),
-             beta_sl = sl_fig$beta_sl,
-             beta_log_sl = sl_fig$beta_log_sl)
-
-sl_fig$shape <- sf_dist$params$shape
-sl_fig$scale <-1
-
-# Now get likelihood from gamma distribution for a bunch of possible steps
-preydiv <- seq(0.5, 0.7, length.out = 100)
-sl_fig <- merge(sl_fig, y = data.frame(preydiv = preydiv)) %>% 
-  mutate(like = dgamma(preydiv, shape = shape, scale = scale))
-
-
-# Plot
-ggplot(sl_fig, aes(x = preydiv, y = like, color = factor(log_sl))) +
-  geom_line(size = 0.9) +
-  xlab("Prey Diversity") +
-  ylab("Likelihood") 
 ```
 
 
