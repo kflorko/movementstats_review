@@ -608,42 +608,7 @@ map_HMM
 # Plot prey div vs probability of selection
 #1. RSF
 ```{r}
-pred <- data.frame(preydiv = ps$preydiv$'state 1'$cov)
 
-rsf2 <- glm(relevel(as.factor(case_), ref = "FALSE") ~ 
-            preydiv,
-            family = "binomial",
-            data = data_rsf)
-
-preds <- predict(rsf2, 
-                 newdata = pred, 
-                 type = "response", 
-                 se.fit = TRUE)
-
-# calculate se
-critval <- 1.96 ## approx 95% CI 
-preds$upr <- preds$fit + (critval * preds$se.fit)
-preds$lwr <- preds$fit - (critval * preds$se.fit)
-
-# combine data frame
-preds2 <- data.frame(preydiv = pred$preydiv,
-                     model = "rsf",
-                     fit = preds$fit, 
-                     se = preds$fit - preds$upr)
-
-# plot to make sure it looks right
-ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_line() +  
-  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) +
-  ylab("RSF prediction") +
-  xlab("Prey diversity")
-
-
-
-
-
-
-
-### LOG-RSS ROUTE
 x1 <- base 
 
 x2 <- base  %>% 
