@@ -643,6 +643,37 @@ ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_line() +
 
 #2. SSF
 ```{r}
+## Prediction for SSF1
+
+x1 <- base 
+
+x2 <- base  %>% 
+  mutate(preydiv = mean(base$preydiv))
+
+# So how do we iterate this? We could use a for loop, we could use lapply, etc.
+# I will use lapply here, with a custom function inside.
+
+log_rss_list <- lapply(1:nrow(x1), function(i) {
+  # Report status
+  cat(i, "of", nrow(x1), "\n")
+  # Calculate log-RSS for that row
+  xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# We now have a list with an element for each row. We can combine those rows
+# into a single data.frame with 'dplyr::bind_rows()'
+res <- dplyr::bind_rows(log_rss_list)
+
+
+# PLOT
+ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
+  xlab("Prey diversity") +
+  ylab("log-RSS") 
+
 
 ## Prediction for SSF2
 nums = seal %>%
@@ -703,6 +734,10 @@ ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 
+
+
+
+
 ### ATTEMPT JUNE 27 afternoon -- prediction for SSF1?
 # Grab the coefficients (b for beta)
 b <- coef(ssf2)
@@ -724,7 +759,7 @@ coef_log_sl_(b, log_sl = 5)
 
 
 # Start with the combinations of step lengths
-sl_fig <- expand.grid(log_sl = c(5, 7, 9)) %>% 
+sl_fig <- expand.grid(log_sl = c(4, 5, 6)) %>% 
   # Calculate the betas for each
   mutate(beta_log_sl = coef_log_sl_(b, log_sl = log_sl))
 
