@@ -695,6 +695,56 @@ ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 
+## LOOP ATTEMPT - THIS IS THE ONE
+seal %>%
+  make_track(lon, lat, date) %>%
+  steps %>%
+  summarize(quants = quantile(sl_, c(0.25, 0.5, 0.75))) %>%
+  pull()
+
+nums = c(1,2,10)
+
+results <- lapply(nums, function(i) {
+  x1 <- base 
+#x11 <- x1
+x1$log_sl <- i
+
+x2 <- base  %>% 
+  mutate(preydiv = mean(base$preydiv))
+
+# So how do we iterate this? We could use a for loop, we could use lapply, etc.
+# I will use lapply here, with a custom function inside.
+
+log_rss_list <- lapply(1:nrow(x1), function(i) {
+  # Report status
+  cat(i, "of", nrow(x1), "\n")
+  # Calculate log-RSS for that row
+  xx <- log_rss(ssf2, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# We now have a list with an element for each row. We can combine those rows
+# into a single data.frame with 'dplyr::bind_rows()'
+res <- dplyr::bind_rows(log_rss_list)
+
+} )
+results <- dplyr::bind_rows(results) %>%
+  mutate(log_sl_x1 = as.factor(log_sl_x1))
+
+# PLOT
+ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_line(size = 1, aes(color = log_sl_x1, group = log_sl_x1)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = log_sl_x1, group = log_sl_x1), alpha = 0.3) +
+  xlab("Prey diversity") +
+  ylab("log-RSS vs Mean Prey Diversity") 
+  
+
+
+
+
+
+
 
 
 ### ATTEMPT JUNE 26 2023
