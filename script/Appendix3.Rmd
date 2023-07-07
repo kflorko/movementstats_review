@@ -402,18 +402,19 @@ map_RSF
 #2. SSF
 This is not easily implemented. Options exist for estimating utilization distribution from a SSF, as detailed in Signer et al. 2017. Previous versions of amt had functions for this (habitat_kernel, movement_kernel, and simulate_ud, Signer et al. 2019), but these have since been deprecated.
 ```{r}
+data_ssf_noNA <- data_ssf[complete.cases(data_ssf),]
 
-ssf1 <- data_ssf %>%
-  fit_clogit(case_ ~ preydiv + sl_ + cos_ta + strata(step_id_), model = TRUE)
-fish_raster
+ssf1 <- data_ssf_noNA %>%
+  fit_issf(case_ ~ preydiv + strata(step_id_), model = TRUE)
+
 
 # 1. make_start()
 ms <- make_start(
-  x = c(pull(data_ssf[1, "x1_"]), pull(data_ssf[1, "y1_"])),
+  x = c(pull(data_ssf_noNA[1, "x1_"]), pull(data_ssf_noNA[1, "y1_"])),
   cos_ta = 0,
-  log_sl = 1,
-  time = pull(data_ssf[1, "t1_"]),
-  dt = hours(1),
+  log_sl = 10,
+  time = pull(data_ssf_noNA[1, "t1_"]),
+  dt = days(1),
   crs = crs(fish_raster))
 
 # 2. get_max_dis()
@@ -424,17 +425,35 @@ gmd <- get_max_dist(ssf1, p = 0.99)
 rd_k <- redistribution_kernel(
   x = ssf1,
   start = ms,
-  map = fish_raster,
+  map = terra::rast(fish_raster),
+  fun = function(xy, map) {
+  extract_covariates(xy, raster::stack(map), where = "both")  # make terra object into rasterStack
+},
   covars = NULL,
   max.dist = gmd,
   n.control = 1e+06,
-  n.sample = 1,
+  n.sample = 10,
   stochastic = TRUE,
-  compensate.movement = TRUE,
-  normalize = FALSE,
+  compensate.movement = FALSE,
+  normalize = TRUE,
   interpolate = FALSE,
-  as.rast = TRUE,
-  tolerance.outside = 0)
+  as.rast = FALSE,
+  tolerance.outside = 5)
+
+rd_k
+
+
+fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+redistribution_kernel(ssf1,
+map = rast(raster::stack(fish_raster)),
+start = ms,
+stochastic = TRUE, tolerance.outside = 0.2,
+n.control = 1e5, n.sample = 1000)
+
+
+
+
+
 
 
 
