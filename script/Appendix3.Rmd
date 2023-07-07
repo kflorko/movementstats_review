@@ -643,70 +643,17 @@ ggplot(data=preds2, mapping=aes(x=preydiv,y=fit)) + geom_line() +
 
 #2. SSF
 ```{r}
-# prep the fish data
-newfish <- fish_raster %>%
-  terra::as.data.frame(xy = TRUE) %>%
-  filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
 
-# Make a base data.frame to create x1 and x2 from:
-# Start with all the combinations of arccod, capelin, and nsandlance
-base <- newfish %>% 
-  #  (note, it doesn't matter what values you pick for sl_ and ta_)
-  mutate(log_sl = log(45),
-         cos_ta = cos(1))
-
-# Now we can create x1 and x2, with the only difference being map = 1 in x1
-# and map = 0 in x2.
-x1 <- base 
-#x11 <- x1
-x1$log_sl <- 40
-
-x2 <- base  %>% 
-  mutate(preydiv = mean(base$preydiv))
-
-# So how do we iterate this? We could use a for loop, we could use lapply, etc.
-# I will use lapply here, with a custom function inside.
-
-log_rss_list <- lapply(1:nrow(x1), function(i) {
-  # Report status
-  cat(i, "of", nrow(x1), "\n")
-  # Calculate log-RSS for that row
-  xx <- log_rss(ssf2, x1[i,], x2[i,], ci = "se")
-  # Return the element $df
-  return(xx$df)
-})
-
-# We now have a list with an element for each row. We can combine those rows
-# into a single data.frame with 'dplyr::bind_rows()'
-res <- dplyr::bind_rows(log_rss_list)
-
-# This object is ready for plotting. For example:
-ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
-  xlab("Prey diversity") +
-  ylab("log-RSS vs Mean Prey Diversity") 
-  
-
-
-
-
-
-
-
-
-## LOOP ATTEMPT - THIS IS THE ONE
-seal %>%
+## Prediction for SSF2
+nums = seal %>%
   make_track(lon, lat, date) %>%
   steps %>%
   summarize(quants = quantile(sl_, c(0.25, 0.5, 0.75))) %>%
   pull()
 
-nums = c(1,2,10)
+x1 <- base 
 
 results <- lapply(nums, function(i) {
-  x1 <- base 
-#x11 <- x1
 x1$log_sl <- i
 
 x2 <- base  %>% 
@@ -730,14 +677,14 @@ res <- dplyr::bind_rows(log_rss_list)
 
 } )
 results <- dplyr::bind_rows(results) %>%
-  mutate(log_sl_x1 = as.factor(log_sl_x1))
+  mutate(log_sl_x1 = as.factor(round(log_sl_x1, 1)))
 
 # PLOT
 ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
   geom_line(size = 1, aes(color = log_sl_x1, group = log_sl_x1)) +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = log_sl_x1, group = log_sl_x1), alpha = 0.3) +
   xlab("Prey diversity") +
-  ylab("log-RSS vs Mean Prey Diversity") 
+  ylab("log-RSS") 
   
 
 
@@ -747,101 +694,16 @@ ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 
-### ATTEMPT JUNE 26 2023
-
-###----- SSF without prey diversity affecting movement
-
-# refit in survival
-ssf1_m <- survival::clogit(case_ ~ 
-             preydiv + log_sl + cos_ta + strata(step_id_), 
-             data = data_ssf)
-
-predsk <- predict(ssf1_m, 
-          newdata = data.frame(
-            preydiv = pred$preydiv,
-            log_sl = log(mean(na.omit(data_hmm$step))), # mean SL
-            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean TA
-            step_id_ = 1), 
-          se.fit = TRUE)
-
-# calculate se
-critval <- 1.96 ## approx 95% CI 
-predsk$upr <- predsk$fit + (critval * predsk$se.fit)
-predsk$lwr <- predsk$fit - (critval * predsk$se.fit)
-
-# combine data frame
-preds2kssf <- data.frame(preydiv = pred$preydiv,
-                     model = "ssf",
-                     fit = predsk$fit, 
-                     se = predsk$fit - predsk$upr)
-
-# plot 
-ggplot(data=preds2kssf, mapping=aes(x=preydiv,y=fit)) + geom_line() +  
-  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv), alpha = 0.3) +
-  ylab("SSF Prediction") + xlab("Prey diversity")
-
-
-# combine with RSF plot
-rbind(preds2kssf, preds2) %>%
-  ggplot() + geom_line(aes(x=preydiv, y=fit, color = model)) +
-  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, x=preydiv, fill = model), 
-              alpha = 0.3) +
-  ylab("Prediction") + xlab("Prey diversity") 
-
-
-###----- SSF with prey diversity affecting movement
-
-# refit in survival
-ssf2_m <- survival::clogit(case_ ~ 
-             preydiv*log_sl + preydiv*cos_ta + strata(step_id_), 
-             data = data_ssf)
-
-
-# define number of availability points per one used point
-speeds <- c(1, 2, 3)
-speed.i = 1
-
-# create empty list
-grab = list()
-for(speed.i in unique(speeds)){
-  
- # predict new data
-  preds <- predict(ssf2_m, 
-          newdata = data.frame(
-            preydiv = pred$preydiv,
-            log_sl = log(Par0_hmm1$Par$step[speed.i]), # set speed
-            cos_ta = cos(mean(na.omit(data_hmm$angle))), # mean turning angle 
-            #step_id_ = unique(data_ssf$step_id_)[1:101],
-            step_id_ = unique(data_ssf$step_id_)[10]), 
-          se.fit = TRUE)
-  
- # calculate se
-  critval <- 1.96 ## approx 95% CI 
-  preds$upr <- preds$fit + (critval * preds$se.fit)
-  preds$lwr <- preds$fit - (critval * preds$se.fit)
-  
-  # combine data frame
-  preds_speed <- data.frame(preydiv = pred$preydiv,
-                     rsf_speed = speed.i,
-                     fit = preds$fit, 
-                     se = preds$fit - preds$upr)
-
- # output
-  grab[[speed.i]] <- preds_speed
-}
-
-resultdf <- bind_rows(grab) %>%
-  as_tibble() %>%
-  mutate(rsf_speed = as.factor(rsf_speed))
-
-ggplot() +
-  geom_line(data=resultdf, aes(x=preydiv,y=fit, color = rsf_speed)) +  
-  geom_ribbon(data=resultdf, aes(ymin=fit-se, ymax=fit+se, x=preydiv, fill= rsf_speed), alpha = 0.3) +
-  ylab("SSF Prediction") + xlab("Prey diversity")
 
 
 
-### ATTEMPT JUNE 27 afternoon
+
+
+
+
+
+
+### ATTEMPT JUNE 27 afternoon -- prediction for SSF1?
 # Grab the coefficients (b for beta)
 b <- coef(ssf2)
 
