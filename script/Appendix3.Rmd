@@ -403,8 +403,6 @@ map_RSF
 
 ```{r}
 
-#------- my turn
-class(fish_raster) #good
 
 # generate availability sample
 set.seed(2023)
@@ -414,7 +412,7 @@ data_ssf <- seal %>%
   steps() %>%
   random_steps() %>% 
   arrange(case_) %>%
-  extract_covariates(fish_raster, where = "both") %>%
+  amt::extract_covariates(fish_raster, where = "both") %>%
   na.omit() 
 
 class(data_ssf)
@@ -432,21 +430,26 @@ summary(m1)
 # First generate a redistribution kernel
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
-                       make_track(lon, lat, date))[1, ]) # This is the starting location (we could sample it randomly from within the area we want to )
-k1 <- redistribution_kernel(m1, map = fish_raster, start = start, stochastic = TRUE, tolerance.outside = 0.2,
-#as.raster = FALSE, (needs to be removed)
-n.control = 1e5, n.sample = 1000)
+                       make_track(lon, lat, date))[4, ]) # This is the starting location (we could sample it randomly from within the area we want to )
+
+k1 <- redistribution_kernel(m1, map = fish_raster, start = start, 
+                            stochastic = TRUE, tolerance.outside = 0.2,
+                            n.control = 1e5, n.sample = 1000)
 
 # Now simulate a path of length 30 for 50 times. This will lead a transient UD. For a steady state UD, either increase `n` or choose many more random starting points. 
-n <- 30
-p1 <- replicate(n, amt::simulate_path(x = k1, n = 20, start = start, verbose = TRUE), simplify = FALSE) # Takes about 2 min
+n <- 2
+p1 <- replicate(n, amt::simulate_path(x = k1, n = 240, 
+                                      start = start, verbose = TRUE), 
+                simplify = FALSE) # Takes about 2 min
 
-uds <- lapply(c(5, 20), function(i) {
+uds <- lapply(c(5, 10), function(i) {
   tibble(
     rep = 1:n, 
-    path = map(p1, ~ dplyr::slice(.x, i))
-  ) |> unnest(cols = path) |> filter(!is.na(x_)) |> 
-    make_track(x_, y_) |> hr_kde(trast = fish_raster, which_min = "global")
+    path = map(p1, ~ dplyr::slice(.x, i))) |> 
+  unnest(cols = path) |> 
+  filter(!is.na(x_)) |> 
+  make_track(x_, y_) |> 
+  hr_kde(trast = fish_raster, which_min = "global")
 })
 
 #saveRDS(uds, file="uds.RData") 
@@ -455,7 +458,7 @@ terra::plot(hr_ud(uds[[1]]))
 terra::plot(hr_ud(uds[[2]]))
 
 
-ssf2pred <- hr_ud(uds[[2]]) %>% terra::as.data.frame(xy = TRUE)
+ssf2pred <- hr_ud(uds[[1]]) %>% terra::as.data.frame(xy = TRUE)
 
 map_SSF2 <- ggplot() + 
   geom_tile(data = ssf2pred, aes(x = x,y = y, fill = preydiv)) +
@@ -463,6 +466,42 @@ map_SSF2 <- ggplot() +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 map_SSF2
+
+
+
+
+
+
+### ATTEMPT JULY 7 PM: SSUD
+k1 <- redistribution_kernel(m1, map = fish_raster, start = start, 
+                            stochastic = TRUE, tolerance.outside = 0.8,
+                            n.control = 1e5, n.sample = 1000)
+
+# Now simulate a path of length 30 for 50 times. This will lead a transient UD. For a steady state UD, either increase `n` or choose many more random starting points. 
+n_steps = 1e3
+n_steps1 = n_steps + 1
+set.seed(2023)
+p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
+
+uds <- tibble(rep = 1:n_steps1, 
+    x_ = p1$x_, y_ = p1$y_,
+    t_ = p1$t_, dt = p1$dt) |> 
+  filter(!is.na(x_)) |> 
+  make_track(x_, y_) |> 
+  hr_kde(trast = fish_raster, which_min = "global")
+#terra::plot(hr_ud(uds))
+
+ssf2pred <- hr_ud(uds) %>% terra::as.data.frame(xy = TRUE)
+map_SSF2 <- ggplot() + 
+  geom_tile(data = ssf2pred, aes(x = x,y = y, fill = preydiv)) +
+  scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+map_SSF2
+
+
+ggplot() + 
+  geom_point(data = p1, aes(x = x_,y = y_)) 
 
 
 
