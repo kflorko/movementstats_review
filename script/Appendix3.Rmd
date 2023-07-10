@@ -538,7 +538,7 @@ map_SSF2 <- ggplot() +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 map_SSF2
 
-
+library(cowplot)
 plot_grid(map_SSF1, map_SSF2, ssf_track_1, ssf_track_2, nrow =2)
 
 
@@ -573,6 +573,10 @@ map_HMM
 # Plot prey div vs probability of selection
 #1. RSF
 ```{r}
+base <- newfish %>% 
+  #  (note, it doesn't matter what values you pick for sl_ and ta_)
+  mutate(log_sl = log(45),
+         cos_ta = cos(1))
 
 x1 <- base 
 
