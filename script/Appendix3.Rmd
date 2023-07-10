@@ -369,15 +369,13 @@ hmmangledist_plot
 ```
 
 # Plot prediction maps
+Prep the data
 ```{r}
 # prep the fish data
 newfish <- fish_raster %>%
-  rasterToPoints() %>%
-  as.data.frame() %>%
+  terra::as.data.frame(xy = TRUE) %>%
   filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
 
-# range function
-range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 ```
 
 
@@ -387,6 +385,9 @@ range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 modcoef <- summary(rsf1)$coef
 x <- exp(modcoef[1] + (modcoef[2] * newfish$preydiv))
 x <- x / (1 + x)
+
+# range fn
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 newfish$rsf_prediction <-range01(x)
 
 # plot
@@ -403,7 +404,6 @@ map_RSF
 
 ```{r}
 
-
 # generate availability sample
 set.seed(2023)
 data_ssf <- seal %>%
@@ -415,67 +415,32 @@ data_ssf <- seal %>%
   amt::extract_covariates(fish_raster, where = "both") %>%
   na.omit() 
 
-class(data_ssf)
-head(data_ssf) # should have burst_
-summary(data_ssf)
-
-# fit model
+### -------------- SSF1
+# fit SSF1 model
 m1 <- data_ssf |> 
-  fit_clogit(case_ ~ preydiv_end +  preydiv_start:cos(ta_) + 
-               preydiv_start:sl_ + strata(step_id_))
+  fit_clogit(case_ ~ preydiv_end +  cos(ta_) + log(sl_) + 
+              # add terms for home range
+               x2_ + y2_ + I(x2_^2 + y2_^2) +
+               strata(step_id_))
 summary(m1)
+
 
 
 # Start with simulations
 # First generate a redistribution kernel
+set.seed(2023)
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
-                       make_track(lon, lat, date))[4, ]) # This is the starting location (we could sample it randomly from within the area we want to )
+                       make_track(lon, lat, date))
+                          # random sample along the track as the start
+                          [sample(1:nrow(seal), 1), ], 
+                    dt_ = hours(2)) 
 
-k1 <- redistribution_kernel(m1, map = fish_raster, start = start, 
-                            stochastic = TRUE, tolerance.outside = 0.2,
-                            n.control = 1e5, n.sample = 1000)
-
-# Now simulate a path of length 30 for 50 times. This will lead a transient UD. For a steady state UD, either increase `n` or choose many more random starting points. 
-n <- 2
-p1 <- replicate(n, amt::simulate_path(x = k1, n = 240, 
-                                      start = start, verbose = TRUE), 
-                simplify = FALSE) # Takes about 2 min
-
-uds <- lapply(c(5, 10), function(i) {
-  tibble(
-    rep = 1:n, 
-    path = map(p1, ~ dplyr::slice(.x, i))) |> 
-  unnest(cols = path) |> 
-  filter(!is.na(x_)) |> 
-  make_track(x_, y_) |> 
-  hr_kde(trast = fish_raster, which_min = "global")
-})
-
-#saveRDS(uds, file="uds.RData") 
-
-terra::plot(hr_ud(uds[[1]]))
-terra::plot(hr_ud(uds[[2]]))
-
-
-ssf2pred <- hr_ud(uds[[1]]) %>% terra::as.data.frame(xy = TRUE)
-
-map_SSF2 <- ggplot() + 
-  geom_tile(data = ssf2pred, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
-map_SSF2
-
-
-
-
-
-
-### ATTEMPT JULY 7 PM: SSUD
-k1 <- redistribution_kernel(m1, map = fish_raster, start = start, 
-                            stochastic = TRUE, tolerance.outside = 0.8,
-                            n.control = 1e5, n.sample = 1000)
+# generate redistribution kernel
+k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
+                            stochastic = TRUE,
+                            tolerance.outside = 0.1,
+                            n.control = 1e3)
 
 # Now simulate a path of length 30 for 50 times. This will lead a transient UD. For a steady state UD, either increase `n` or choose many more random starting points. 
 n_steps = 1e3
@@ -483,145 +448,98 @@ n_steps1 = n_steps + 1
 set.seed(2023)
 p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
 
-uds <- tibble(rep = 1:n_steps1, 
+# plot simulated track
+ssf_track_1 <- fishmap +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_point(data = p1, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p1, aes(x = x_,y = y_)) 
+
+
+# estimate SSUD
+uds_ssf1 <- tibble(rep = 1:n_steps1, 
     x_ = p1$x_, y_ = p1$y_,
     t_ = p1$t_, dt = p1$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
-  hr_kde(trast = fish_raster, which_min = "global")
-#terra::plot(hr_ud(uds))
+  hr_kde(trast = fish_raster, which_min = "global") %>%
+  hr_ud() %>% 
+  terra::as.data.frame(xy = TRUE)
 
-ssf2pred <- hr_ud(uds) %>% terra::as.data.frame(xy = TRUE)
+# plot SSUD
+map_SSF1 <- ggplot() + 
+  geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
+  scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+map_SSF1
+
+
+
+
+
+
+
+
+### -------------- SSF2
+# fit SSF2 model
+m2 <- data_ssf |> 
+  fit_clogit(case_ ~ preydiv +  preydiv_start:cos(ta_)+
+               preydiv_start:log(sl_) + 
+               # add terms for home range
+               x2_ + y2_ + I(x2_^2 + y2_^2) +
+               strata(step_id_))
+summary(m2)
+
+
+# Start with simulations
+# First generate a redistribution kernel
+set.seed(2023)
+start <- make_start((seal %>%
+                       mutate(date = as.POSIXct(date)) %>%
+                       make_track(lon, lat, date))
+                          # first location of the track as the start
+                          [sample(1:nrow(seal), 1), ], 
+                    dt_ = hours(2)) 
+
+# generate redistribution kernel
+k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
+                            stochastic = TRUE, 
+                            tolerance.outside = 0.3,
+                            n.control = 1e3)
+
+# Now simulate a path of length 30 for 50 times. This will lead a transient UD. For a steady state UD, either increase `n` or choose many more random starting points. 
+n_steps = 1e3
+n_steps1 = n_steps + 1
+set.seed(2023)
+p2 <- amt::simulate_path(x = k2, n = n_steps, start = start)
+
+# plot simulated track
+ssf_track_2 <- fishmap +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_point(data = p2, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p2, aes(x = x_,y = y_)) 
+
+
+# estimate SSUD
+uds_ssf2 <- tibble(rep = 1:n_steps1, 
+    x_ = p1$x_, y_ = p1$y_,
+    t_ = p1$t_, dt = p1$dt) |> 
+  filter(!is.na(x_)) |> 
+  make_track(x_, y_) |> 
+  hr_kde(trast = fish_raster, which_min = "local") %>%
+  hr_ud() %>% 
+  terra::as.data.frame(xy = TRUE)
+
+# plot SSUD
 map_SSF2 <- ggplot() + 
-  geom_tile(data = ssf2pred, aes(x = x,y = y, fill = preydiv)) +
+  geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 map_SSF2
 
 
-ggplot() + 
-  geom_point(data = p1, aes(x = x_,y = y_)) 
-
-
-
-
-
-
-
-data_ssf_noNA <- data_ssf[complete.cases(data_ssf),]
-
-ssf1 <- data_ssf_noNA %>%
-  fit_issf(case_ ~ preydiv + strata(step_id_), model = TRUE)
-
-
-# 1. make_start()
-ms <- make_start(
-  x = c(pull(data_ssf_noNA[1, "x1_"]), pull(data_ssf_noNA[1, "y1_"])),
-  cos_ta = 0,
-  log_sl = 10,
-  time = pull(data_ssf_noNA[1, "t1_"]),
-  dt = days(1),
-  crs = crs(fish_raster))
-
-# 2. get_max_dis()
-gmd <- get_max_dist(ssf1, p = 0.99)
-
-
-# 3. redistribution_kernel()
-rd_k <- redistribution_kernel(
-  x = ssf1,
-  start = ms,
-  map = terra::rast(fish_raster),
-  fun = function(xy, map) {
-  extract_covariates(xy, raster::stack(map), where = "both")  # make terra object into rasterStack
-},
-  covars = NULL,
-  max.dist = gmd,
-  n.control = 1e+06,
-  n.sample = 10,
-  stochastic = TRUE,
-  compensate.movement = FALSE,
-  normalize = TRUE,
-  interpolate = FALSE,
-  as.rast = FALSE,
-  tolerance.outside = 5)
-
-rd_k
-
-
-fish_raster <- rasterFromXYZ(fish, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
-redistribution_kernel(ssf1,
-map = rast(raster::stack(fish_raster)),
-start = ms,
-stochastic = TRUE, tolerance.outside = 0.2,
-n.control = 1e5, n.sample = 1000)
-
-
-
-
-
-
-
-
-#######----------DEPRECATED WAY
-##---- ssf1: ssf without covariate affecting movement kernel
-
-# define habitat kernel
-hk <- habitat_kernel(
-  coef = coef(ssf1)["preydiv"], 
-  resources = fish_raster$preydiv)
-
-# simulate utlization distribution
-ssud_day <- simulate_ud(movement_kernel = hk,
-                        habitat_kernel = hk,
-                        start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
-                        n = 1e7)
-
-# convert to dataframe
-ssud_day <- as.data.frame(ssud_day, xy=TRUE)
-
-# plot
-map_SSF_withoutmvmt <- ggplot() + 
-  geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
-  scale_fill_viridis(option = "mako", name = "SSF Probability\n(without movement*prey)\n", limits = c(0,0.03)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
-map_SSF_withoutmvmt
-
-
-##---- ssf2: ssf with covariate affecting movement kernel
-
-# grab step data
-sl_char <- amt::sl_distr(filter(data_ssf, case_ == "TRUE"))
-
-# define movement kernel
-mk <- movement_kernel(
-  shape = sl_char$params$shape, 
-  scale = sl_char$params$scale, 
-  template = fish_raster$preydiv)
-
-# define habitat kernel
-hk <- habitat_kernel(
-  coef = coef(ssf2)["preydiv"], 
-  resources = fish_raster$preydiv)
-
-# simulate utlization distribution
-ssud_day <- simulate_ud(movement_kernel = mk,
-                        habitat_kernel = hk,
-                        start = as.numeric(data_ssf[1, c("x1_", "y1_")]),
-                        n = 1e7)
-
-# convert to dataframe
-ssud_day <- as.data.frame(ssud_day, xy=TRUE)
-
-# plot
-map_SSF_withmvmt <- ggplot() + 
-  geom_tile(data = ssud_day, aes(x = x,y = y,fill = layer)) +
-  scale_fill_viridis(option = "mako", name = "SSF Probability\n(with movement*prey)\n", limits = c(0,0.08)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
-map_SSF_withmvmt
+plot_grid(map_SSF1, map_SSF2, ssf_track_1, ssf_track_2, nrow =2)
 
 
 ```
@@ -634,9 +552,10 @@ newfish$hmm_state2 <- x$state.2
 newfish$hmm_state3 <- x$state.3 
 
 newfish_long <- newfish %>%
-  pivot_longer(cols = hmm_state1:hmm_state3, 
+  tidyr::pivot_longer(cols = hmm_state1:hmm_state3, 
                names_to = "model", values_to = "prediction") %>%
-  mutate(across(model, factor, levels=c("hmm_state1", "hmm_state2", "hmm_state3")))
+  mutate(dplyr::across(model, factor, levels=
+               c("hmm_state1", "hmm_state2", "hmm_state3")))
 
 map_HMM <- ggplot() + 
   geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
@@ -677,13 +596,12 @@ log_rss_list <- lapply(1:nrow(x1), function(i) {
 res <- dplyr::bind_rows(log_rss_list)
 
 # PLOT
-ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
+rsf_line <- ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_line(size = 1, color = "#F8D59F",linetype = 2) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.4, fill = "#F8D59F") +
   xlab("Prey diversity") +
-  ylab("log-RSS") 
-
-
+  ylab("log-RSS") +
+  theme_minimal()
 
 ```
 
@@ -716,9 +634,9 @@ res <- dplyr::bind_rows(log_rss_list)
 
 
 # PLOT
-ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
-  geom_line(size = 1) +
-  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
+ssf_line_1 <- ggplot() +
+  geom_line(data = res, aes(x = preydiv_x1, y = log_rss), size = 1, linetype = 3) +
+  geom_ribbon(data = res, aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
   xlab("Prey diversity") +
   ylab("log-RSS") 
 
@@ -764,7 +682,14 @@ ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = log_sl_x1, group = log_sl_x1), alpha = 0.3) +
   xlab("Prey diversity") +
   ylab("log-RSS") 
-  
+
+
+# Plot
+ssf_line_1 +
+  geom_line(data = results, size = 1, aes(x = preydiv_x1, y = (log_rss), 
+                                          color = log_sl_x1, group = log_sl_x1)) +
+  geom_ribbon(data = results, aes(ymin=lwr, ymax=upr, x=preydiv_x1, 
+                                  fill = log_sl_x1, group = log_sl_x1), alpha = 0.3)
 
 ```
 
