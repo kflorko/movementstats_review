@@ -2,8 +2,14 @@
 title: "Appendix 3"
 author: "Katie Florko"
 date: "30/11/2022"
-output: html_document
-theme: cosmo
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_float: true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
 ---
 
 ```{r setup, include=FALSE}
@@ -14,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This document contains the code from "*A comparison of statistical models used to characterize species-habitat associations with movement data*". This code includes the case study analysis on ringed seal movement in eastern Hudson Bay, Canada.
 
-# Prepare
+# 1. Prepare
 ## Load packages
 
 ```{r, message = FALSE, warning = FALSE}
@@ -87,8 +93,8 @@ sealfishmap
 
 ```
 
-# Fit models
-#1. RSF
+# 2. Fit models
+## 2.1. RSF
 Fit using amt (Signer et al. 2019)
 ```{r}
 # generate availability sample
@@ -117,7 +123,7 @@ rsf1 <- data_rsf %>%
 summary(rsf1)
 ```
 
-#2. SSF
+## 2.2. SSF
 Fit using amt (Signer et al. 2019)
 ```{r, message = FALSE}
 
@@ -151,7 +157,7 @@ ssf1 <- data_ssf %>%
 
 ## ssf2: ssf with covariate affecting movement kernel
 ssf2 <- data_ssf %>%
-  fit_clogit(case_ ~ log_sl * preydiv + cos_ta * preydiv + strata(step_id_), model = TRUE)
+  fit_clogit(case_ ~ log_sl * preydiv + cos_ta + strata(step_id_), model = TRUE)
 
 # see parameter estimates
 summary(ssf1)
@@ -159,7 +165,7 @@ summary(ssf2)
 ```
 
 
-#3. HMM
+## 2.3. HMM
 Fit using momentuHMM (McClintock and Michelot, 2018)
 ```{r, message = FALSE}
 # prepare dataset
@@ -247,7 +253,6 @@ data_hmm <- seal %>%
 # do momentuhmm which calculates step length in KM
 data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type = "LL", covNames = c("preydiv"))
 
-hist(data_hmm$step)
 
 # define parameters
 nbStates <- 3
@@ -259,15 +264,16 @@ sigma0 <- c(3, 5, 8)
 stepPar0 <- c(mu0, sigma0)
 kappa0 <- c(0.35, 0.55, 0.5)
 
+# fit HMM (with step in km)
 set.seed(2023)
 hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             dist=list(step=stepDist,angle=angleDist),
             Par0=list(step=stepPar0,angle=kappa0))
 
-# get starting parameters 
+# get parameters 
 Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
-# fit hmm with formula
+# fit HMM with parameters from hmm1_km
 set.seed(2023)
 hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             dist=list(step=stepDist,angle=angleDist),
@@ -368,7 +374,7 @@ hmmangledist_plot <- ggplot() +
 hmmangledist_plot
 ```
 
-# Plot prediction maps
+# 3. Plot prediction maps
 Prep the data
 ```{r}
 # prep the fish data
@@ -379,7 +385,7 @@ newfish <- fish_raster %>%
 ```
 
 
-#1. RSF
+## 3.1. RSF
 ```{r}
 
 modcoef <- summary(rsf1)$coef
@@ -400,7 +406,7 @@ map_RSF
 
 ```
 
-#2. SSF
+## 3.2. SSF
 
 ```{r}
 
@@ -422,8 +428,6 @@ m1 <- data_ssf |>
               # add terms for home range
                x2_ + y2_ + I(x2_^2 + y2_^2) +
                strata(step_id_))
-summary(m1)
-
 
 
 # Start with simulations
@@ -468,14 +472,10 @@ uds_ssf1 <- tibble(rep = 1:n_steps1,
 # plot SSUD
 map_SSF1 <- ggplot() + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
+  scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
 map_SSF1
-
-
-
-
 
 
 
@@ -488,7 +488,6 @@ m2 <- data_ssf |>
                # add terms for home range
                x2_ + y2_ + I(x2_^2 + y2_^2) +
                strata(step_id_))
-summary(m2)
 
 
 # Start with simulations
@@ -544,7 +543,7 @@ plot_grid(map_SSF1, map_SSF2, ssf_track_1, ssf_track_2, nrow =2)
 
 ```
 
-#3. HMM
+## 3.3. HMM
 ```{r}
 x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(preydiv = newfish$preydiv)))
 newfish$hmm_state1 <- x$state.1
@@ -570,8 +569,8 @@ map_HMM
 ```
 
 
-# Plot prey div vs probability of selection
-#1. RSF
+# 4. Plot prey div vs probability of selection
+## 4.1. RSF
 ```{r}
 base <- newfish %>% 
   #  (note, it doesn't matter what values you pick for sl_ and ta_)
@@ -611,7 +610,7 @@ rsf_line <- ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 
-#2. SSF
+## 4.2. SSF
 ```{r}
 ## Prediction for SSF1
 
@@ -624,8 +623,6 @@ x2 <- base  %>%
 # I will use lapply here, with a custom function inside.
 
 log_rss_list <- lapply(1:nrow(x1), function(i) {
-  # Report status
-  cat(i, "of", nrow(x1), "\n")
   # Calculate log-RSS for that row
   xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
   # Return the element $df
@@ -664,8 +661,6 @@ x2 <- base  %>%
 # I will use lapply here, with a custom function inside.
 
 log_rss_list <- lapply(1:nrow(x1), function(i) {
-  # Report status
-  cat(i, "of", nrow(x1), "\n")
   # Calculate log-RSS for that row
   xx <- log_rss(ssf2, x1[i,], x2[i,], ci = "se")
   # Return the element $df
@@ -698,7 +693,7 @@ ssf_line_1 +
 ```
 
 
-#3. HMM
+## 4.3. HMM
 ```{r}
 # grab stationary probabilities
 ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
