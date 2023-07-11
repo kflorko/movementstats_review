@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This document contains the code from "*A comparison of statistical models used to characterize species-habitat associations with movement data*". This code includes the case study analysis on ringed seal movement in eastern Hudson Bay, Canada.
 
-# 1. Prepare
+# Prepare
 ## Load packages
 
 ```{r, message = FALSE, warning = FALSE}
@@ -93,8 +93,8 @@ sealfishmap
 
 ```
 
-# 2. Fit models
-## 2.1. RSF
+# Fit models
+## RSF
 Fit using amt (Signer et al. 2019)
 ```{r}
 # generate availability sample
@@ -123,7 +123,7 @@ rsf1 <- data_rsf %>%
 summary(rsf1)
 ```
 
-## 2.2. SSF
+## SSF
 Fit using amt (Signer et al. 2019)
 ```{r, message = FALSE}
 
@@ -165,7 +165,7 @@ summary(ssf2)
 ```
 
 
-## 2.3. HMM
+## HMM
 Fit using momentuHMM (McClintock and Michelot, 2018)
 ```{r, message = FALSE}
 # prepare dataset
@@ -334,7 +334,8 @@ hmmstepdist_plot <- ggplot() +
               breaks = c('Foraging', 'ARS', 'Travelling'), 
               labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
   ylab("Density") + 
-  xlab("Step length (kms)") 
+  xlab("Step length (kms)") +
+  theme_minimal()
 hmmstepdist_plot
 
 ##-----ANGLE DIST
@@ -370,11 +371,12 @@ hmmangledist_plot <- ggplot() +
   scale_colour_manual(values=c(colours.states), breaks = c('Foraging', 'ARS', 'Travelling'), labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
   scale_x_continuous(limits=c(-pi,pi))+
   ylab("Density") + 
-  xlab("Turn angle (radians) ") 
+  xlab("Turn angle (radians) ") +
+  theme_minimal()
 hmmangledist_plot
 ```
 
-# 3. Plot prediction maps
+# Plot prediction maps
 Prep the data
 ```{r}
 # prep the fish data
@@ -385,7 +387,7 @@ newfish <- fish_raster %>%
 ```
 
 
-## 3.1. RSF
+## RSF
 ```{r}
 
 modcoef <- summary(rsf1)$coef
@@ -406,7 +408,7 @@ map_RSF
 
 ```
 
-## 3.2. SSF
+## SSF
 
 ```{r}
 
@@ -543,7 +545,7 @@ plot_grid(map_SSF1, map_SSF2, ssf_track_1, ssf_track_2, nrow =2)
 
 ```
 
-## 3.3. HMM
+## HMM
 ```{r}
 x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(preydiv = newfish$preydiv)))
 newfish$hmm_state1 <- x$state.1
@@ -569,8 +571,8 @@ map_HMM
 ```
 
 
-# 4. Plot prey div vs probability of selection
-## 4.1. RSF
+# Plot prey div vs probability of selection
+## RSF
 ```{r}
 base <- newfish %>% 
   #  (note, it doesn't matter what values you pick for sl_ and ta_)
@@ -586,8 +588,6 @@ x2 <- base  %>%
 # I will use lapply here, with a custom function inside.
 
 log_rss_list <- lapply(1:nrow(x1), function(i) {
-  # Report status
-  cat(i, "of", nrow(x1), "\n")
   # Calculate log-RSS for that row
   xx <- log_rss(rsf1, x1[i,], x2[i,], ci = "se")
   # Return the element $df
@@ -610,7 +610,7 @@ rsf_line <- ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 
-## 4.2. SSF
+## SSF
 ```{r}
 ## Prediction for SSF1
 
@@ -639,7 +639,8 @@ ssf_line_1 <- ggplot() +
   geom_line(data = res, aes(x = preydiv_x1, y = log_rss), size = 1, linetype = 3) +
   geom_ribbon(data = res, aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.3) +
   xlab("Prey diversity") +
-  ylab("log-RSS") 
+  ylab("log-RSS") +
+  theme_minimal()
 
 
 ## Prediction for SSF2
@@ -680,7 +681,8 @@ ggplot(results, aes(x = preydiv_x1, y = (log_rss))) +
   geom_line(size = 1, aes(color = log_sl_x1, group = log_sl_x1)) +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = log_sl_x1, group = log_sl_x1), alpha = 0.3) +
   xlab("Prey diversity") +
-  ylab("log-RSS") 
+  ylab("log-RSS") +
+  theme_minimal()
 
 
 # Plot
@@ -693,7 +695,7 @@ ssf_line_1 +
 ```
 
 
-## 4.3. HMM
+## HMM
 ```{r}
 # grab stationary probabilities
 ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
@@ -705,6 +707,9 @@ state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
 pdat <- rbind(state1, state2, state3) %>%
   mutate(state = as.character(state)) 
 
+```
+
+```{r, fig.show='hide', results='hide'}
 # plot
 hmmprobs_plot <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
@@ -715,7 +720,8 @@ hmmprobs_plot <- ggplot() +
   scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
                      labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
     scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) 
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
+  theme_minimal()
 
 hmmprobs_plot
 
@@ -724,12 +730,22 @@ hmmprobs_plot
 
 
 # References 
-Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. 2021. Predicting how climate change threatens the prey base of Arctic marine predators. Ecology Letters, 24: 2563-2575.
 
-Florko, K.R.N., Shuert, C.R., Cheung, W.W.L., Ferguson, S.H., Jonsen, I.D., Rosen, D.A.S., Sumaila, U.R., Tai, T.C., Yurkowski, D.J., Auger-Méthé, M. 2023. Linking movement and dive data to prey distribution models: new insights in foraging behavior and potential pitfalls of movement analyses. Movement Ecology, 11:17 https://doi.org/10.1186/s40462-023-00377-2
+<div style="text-indent: -40px; padding-left: 40px;">
+Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. 2021. Predicting how climate change threatens the prey base of Arctic marine predators. Ecology Letters, 24: 2563-2575. https://doi.org/10.1111/ele.13866 </div>
 
-McClintock, B.T., Michelot, T. 2018. momentuHMM: R package for generalized hidden markov models of animal movement. Methods Ecol. Evolut. 9, 1518-1530.
 
-Signer, J., Fieberg, J., & Avgar, T. (2017). Estimating utilization distributions from fitted step‐selection functions. Ecosphere, 8(4), e01771.
+<div style="text-indent: -40px; padding-left: 40px;">
+Florko, K.R.N., Shuert, C.R., Cheung, W.W.L., Ferguson, S.H., Jonsen, I.D., Rosen, D.A.S., Sumaila, U.R., Tai, T.C., Yurkowski, D.J., Auger-Méthé, M. 2023. Linking movement and dive data to prey distribution models: new insights in foraging behavior and potential pitfalls of movement analyses. Movement Ecology, 11:17 https://doi.org/10.1186/s40462-023-00377-2 </div>
 
-Signer, J., J. Fieberg, and T. Avgar. 2019. Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution 9:880–890.
+
+<div style="text-indent: -40px; padding-left: 40px;">
+McClintock, B.T., Michelot, T. 2018. momentuHMM: R package for generalized hidden markov models of animal movement. Methods Ecol. Evolut. 9, 1518-1530.  https://doi.org/10.1111/2041-210X.12995 </div>
+
+
+<div style="text-indent: -40px; padding-left: 40px;">
+Signer, J., Fieberg, J., & Avgar, T. (2017). Estimating utilization distributions from fitted step‐selection functions. Ecosphere, 8(4), e01771.   https://doi.org/10.1002/ecs2.1771 </div>
+
+
+<div style="text-indent: -40px; padding-left: 40px;">
+Signer, J., J. Fieberg, and T. Avgar. 2019. Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution 9:880–890.  https://doi.org/10.1002/ece3.4823 </div>
