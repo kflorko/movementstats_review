@@ -346,10 +346,10 @@ hmm_stepdist_plot <- ggplot() +
   geom_line(data=statedis,aes(x=x,y=dens,colour=State,linetype=State), size=1.2) +
   scale_colour_manual(values=c(colours.states,"#000000"), 
               breaks = c('Foraging', 'ARS', 'Travelling'), 
-              labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+              labels=c("Localized search", "Area-restricted search", "Travelling")) +
   scale_linetype_manual(values=c("solid","solid", "solid"), 
               breaks = c('Foraging', 'ARS', 'Travelling'), 
-              labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+              labels=c("Localized search", "Area-restricted search", "Travelling")) +
   ylab("Density") + 
   xlab("Step length (kms)") +
   theme_minimal()
@@ -388,7 +388,7 @@ cmb <- rbind(df.y_TR, df.y_CR, df.y_ARS)
 # plot distributions
 hmm_angledist_plot <- ggplot() +
   geom_line(data=cmb,aes(x=x,y=dens,colour=State), size = 1.2) +
-  scale_colour_manual(values=c(colours.states), breaks = c('Foraging', 'ARS', 'Travelling'), labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling")) +
+  scale_colour_manual(values=c(colours.states), breaks = c('Foraging', 'ARS', 'Travelling'), labels=c("Localized search", "Area-restricted search", "Travelling")) +
   scale_x_continuous(limits=c(-pi,pi))+
   ylab("Density") + 
   xlab("Turn angle (radians) ") +
@@ -572,9 +572,9 @@ line_hmm <- ggplot() +
   ylab("Stationary state probabilties") +
   xlab("Prey diversity") +
   scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
+                     labels=c("Localized search", "Area-restricted search", "Travel")) +
     scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
+                     labels=c("Localized search", "Area-restricted search", "Travel")) +
   theme_minimal()
 
 line_hmm

@@ -59,7 +59,7 @@ fig4a <- p1 +
 
 fig4b <- p1 + 
   geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
-  geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_), alpha = 0.6) +
+  geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_), alpha = 0.8) +
   geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
   scale_color_manual(values = c("#F1A97A", "#5B207C"), 
                      label = c("Available", "Observed"), name = "Data type") +
@@ -74,7 +74,7 @@ fig4b <- p1 +
          size = guide_legend(title.position="top", title.hjust = 0.5)) 
 
 fig4c <- p1 + 
-  geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.6) +
+  geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.8) +
   geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
   scale_color_manual(values = c("#F1A97A", "#5B207C"), 
                      label = c("Available", "Observed"), name = "Data type") +
@@ -113,8 +113,8 @@ fig4e <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray")  +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.5) +
   geom_line(size = 1, aes(color = Speed, group = Speed)) +
-  scale_fill_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast')) +
-  scale_color_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast')) +
+  scale_fill_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast'), labels = c('Slow', 'Moderate', 'Fast')) +
+  scale_color_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast'), labels = c('Slow', 'Moderate', 'Fast')) +
   xlab("Prey diversity") +
   ylab("\nlog-RSS") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
@@ -128,7 +128,7 @@ fig4f <- line_hmm +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
   ggtitle("F)") +
-  theme(legend.position = c(0.28, 0.84)) +
+  theme(legend.position = c(0.36, 0.84)) +
   ylab("\nStationary state probabilities") 
 
 tiff(file = "figures/asus_fig4.tiff", units="in", width=10, height=7.5, res=500)
@@ -258,4 +258,25 @@ tiff(file = "figures/asus_fig5.tiff", units="in", width=12, height = 8.5, res=50
 plot_grid(fig5a, fig5b, fig5c, fig5d, fig5e, fig5f, ncol = 3)
 dev.off()
 ```
+
+
+# Fig. S1
+```{r}
+figS1a <- hmm_stepdist_plot +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  ggtitle("A)")
+
+figS1b <- hmm_angledist_plot +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  ggtitle("B)")
+
+tiff(file = "figures/asus_figS1.tiff", units="in", width=6, height = 8, res=500)
+plot_grid(figS1a, figS1b, ncol = 1)
+dev.off()
+
+```
+
+# Fig. S2
 
