@@ -131,8 +131,131 @@ fig4f <- line_hmm +
   theme(legend.position = c(0.28, 0.84)) +
   ylab("\nStationary state probabilities") 
 
-tiff(file = "movementstats_review/figures/asus_fig4.tiff", units="in", width=7, height=6, res=500)
+tiff(file = "figures/asus_fig4.tiff", units="in", width=10, height=7.5, res=500)
 plot_grid(fig4a, fig4b, fig4c, fig4d, fig4e, fig4f, ncol = 3)
+dev.off()
+```
+
+# Fig. 5
+```{r}
+fig5a <- p1 +
+  geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
+  scale_fill_viridis(option = "mako", name = "RSF prediction", limits = c(0, 0.3), breaks = c(0.0, 0.15, 0.3)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "horizontal",
+        legend.position = c(0.80, 0.89)) +
+  ggtitle("A)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+
+fig5b <- p1 + 
+  geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
+  scale_fill_viridis(option = "mako", name = "SSF1 prediction", breaks = c(0,0.06,0.12)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "horizontal",
+        legend.position = c(0.80, 0.89)) +
+  ggtitle("A)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+fig5c <- p1 +
+  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
+  geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
+  geom_point(data=data_hmm, aes(x=x, y=y, color = state, shape = state), size=2, alpha = 0.8) + 
+  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), 
+                     labels = c("Localized search", "Area-restricted search", "Travelling"), 
+                     name = "HMM state") +
+  scale_shape_manual(values = c(15, 16, 17), 
+                     labels=c("Localized search", "Area-restricted search", "Travelling"), 
+                     name = "HMM state") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "vertical",
+        legend.position = c(0.3, 0.1)) +
+  ggtitle("C)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+fig5d <- p1 +
+  geom_tile(data = newfish_long %>% filter(model == "hmm_state1"), 
+            aes(x = x, y = y, fill = prediction)) +
+  scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
+  labs(fill = 'HMM predicted\nprobability') +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "horizontal",
+        legend.position = c(0.80, 0.89)) +
+  ggtitle("D)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+fig5e <- p1 +
+  geom_tile(data = newfish_long %>% filter(model == "hmm_state2"), 
+            aes(x = x, y = y, fill = prediction)) +
+  scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
+  labs(fill = 'HMM predicted\nprobability') +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "horizontal",
+        legend.position = c(0.80, 0.89)) +
+  ggtitle("E)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+fig5f <- p1 +
+  geom_tile(data = newfish_long %>% filter(model == "hmm_state3"), 
+            aes(x = x, y = y, fill = prediction)) +
+  scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
+  labs(fill = 'HMM predicted\nprobability') +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "horizontal",
+        legend.position = c(0.80, 0.89)) +
+  ggtitle("F)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+tiff(file = "figures/asus_fig5.tiff", units="in", width=12, height = 8.5, res=500)
+plot_grid(fig5a, fig5b, fig5c, fig5d, fig5e, fig5f, ncol = 3)
 dev.off()
 ```
 
