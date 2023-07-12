@@ -279,4 +279,46 @@ dev.off()
 ```
 
 # Fig. S2
+```{r}
+figS2a <- fishmap +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_point(data = p1, aes(x = x_,y = y_), alpha = 0.61, color = "#FCEEAE") +
+  geom_path(data = p1, aes(x = x_,y = y_), color = "#FCEEAE") +
+  theme_minimal() +
+  ggtitle("A)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  theme(axis.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        text = element_text(size=12),
+        strip.background = element_rect(colour = "white"),
+        legend.direction = "vertical", 
+        legend.background = element_blank()) 
+
+
+figS2b <- fishmap +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_point(data = p2, aes(x = x_,y = y_), alpha = 0.61, color = "#FCEEAE") +
+  geom_path(data = p2, aes(x = x_,y = y_), color = "#FCEEAE") +
+  theme_minimal() +
+  ggtitle("B)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  theme(axis.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        text = element_text(size=12),
+        strip.background = element_rect(colour = "white"),
+        legend.direction = "vertical", 
+        legend.background = element_blank()) 
+
+tiff(file = "figures/asus_figS2.tiff", units="in", width=10, height = 4.5, res=500)
+plot_grid(figS2a, figS2b, ncol = 2)
+dev.off()
+```
 
