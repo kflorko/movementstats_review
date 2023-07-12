@@ -531,10 +531,16 @@ line_ssf2
 Typically these models would be interpreted independently. But it's worth noting that while the effects are minimal and the confidence intervals overlap, when comparing ssf1 and ssf2, the ssf2 provides more information about the animal's relationship with prey diversity.
 ```{r, message = 'false'}
 # Plot
-line_ssf2 +
+ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-  geom_line(data = res, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed, linetype = Speed), size = 1) + 
-  geom_ribbon(data = res, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.2) +
+  geom_line(size = 1, aes(color = Speed, group = Speed, linetype = Speed)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.3) +
+  xlab("Prey diversity") +
+  ylab("log-RSS") +
+  theme_minimal() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line(data = res2, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed, linetype = Speed), size = 1) + 
+  geom_ribbon(data = res2, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.2) +
   scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66", "black"), 
                      labels = c("Fast", "Moderate", "Slow", "Not consid."), 
                      name = "Speed") +
