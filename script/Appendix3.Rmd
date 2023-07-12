@@ -396,9 +396,9 @@ hmm_angledist_plot <- ggplot() +
 hmm_angledist_plot
 ```
 
-# Prediction maps
 
-Now we will estimate the utilization distribution from each model to demonstrate the inference from each model. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficent with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrates the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). Luckily, amt has functions to estimate the SSUD.
+# Prediction line plots
+Plotting a model's estimated relationship between the resource covariate and probability of selection can be useful for general ecological inference. We will calculate the log of the relative selection strength (log-RSS) for each selection function model. The log-RSS is a measure how how likely a step is to end in a proposed location (x1) to one a single reference location (x2), where zero indicates no preference, >1 indicates selection, and <1 indicates avoidance (Avgar et al. 2017, Fieberg et al. 2021). 
 
 First, we prepare a dataframe to predict on.
 ```{r}
@@ -408,6 +408,184 @@ newfish <- fish_raster %>%
   filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
 
 ```
+
+
+## RSF
+Since the RSF does not incorporate movement, we will calculate the log-RSS of the movement-free habitat selection kernel. This is easily done using `log_rss()` from `amt`.
+```{r}
+
+# make a base dataframe to create x1 and x2 from
+base <- newfish %>% 
+  mutate(log_sl = log(45),
+         cos_ta = cos(1))
+
+# x1 is our original dataframe
+x1 <- base 
+
+# x2 holds prey diversity constant at its mean
+x2 <- base  %>% 
+  mutate(preydiv = mean(base$preydiv))
+
+# apply log_rss() to each row
+log_rss_list <- lapply(1:nrow(x1), function(i) {
+  # Calculate log-RSS for that row
+  xx <- log_rss(rsf1, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# combine rows
+res1 <- dplyr::bind_rows(log_rss_list)
+
+# plot
+line_rsf <- ggplot(res1, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line(size = 1, color = "#F8D59F",linetype = 2) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.4, fill = "#F8D59F") +
+  xlab("Prey diversity") +
+  ylab("log-RSS") +
+  theme_minimal()
+line_rsf
+```
+
+
+
+## SSF
+We can also calculate the log-RSS of a SSF following the same workflow as for the RSF. Since log_rss() passes to predict(), it is important that the fit SSF includes `model = TRUE`. 
+```{r}
+## log-RSS prediction for ssf1
+
+# apply log_rss() to each row
+log_rss_list <- lapply(1:nrow(x1), function(i) {
+  # Calculate log-RSS for that row
+  xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# combine rows
+res2 <- dplyr::bind_rows(log_rss_list) %>%
+  mutate(Speed = "without int.")
+
+
+# plot
+line_ssf1 <- ggplot() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
+  geom_line(data = res2, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed), size = 1, linetype = 3, color = "black") + 
+  geom_ribbon(data = res2, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.3, fill = "black") +
+  xlab("Prey diversity") +
+  ylab("log-RSS") +
+  theme_minimal()
+line_ssf1
+```
+
+For ssf2 (the model where prey diversity interacts with movement), we will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. 
+```{r}
+## log-RSS prediction for ssf2
+
+# determine the 25th (slow), 50th (moderate), and 75th (fast) percentiles of step-length
+nums = seal %>%
+  make_track(lon, lat, date) %>%
+  steps %>%
+  mutate(log_sl = log(sl_)) %>%
+  summarize(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
+  pull()
+
+# set-up to run function for each speed
+results_ssf2 <- lapply(nums, function(i) {
+x1$log_sl <- i
+
+# calculate log-RSS
+  log_rss_list <- lapply(1:nrow(x1), function(i) {
+    # Calculate log-RSS for that row
+    xx <- log_rss(ssf2, x1[i,], x2[i,], ci = "se")
+    # Return the element $df
+    return(xx$df)
+  })
+
+# bind rows within each speed's prediction
+res3 <- dplyr::bind_rows(log_rss_list)
+} )
+
+# bind rows of all speed's prediction
+results_ssf2 <- dplyr::bind_rows(results_ssf2) %>%
+  mutate(log_sl_x1 = as.factor(round(log_sl_x1,1)),
+         Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "slow",
+                                  as.factor(log_sl_x1) == "9.2" ~ "moderate",
+                                  as.factor(log_sl_x1) == "9.6" ~ "fast"))
+
+# plot
+line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line(size = 1, aes(color = Speed, group = Speed, linetype = Speed)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.3) +
+  scale_colour_manual(values=c(colours.states,"#000000")) +
+  scale_fill_manual(values=c(colours.states,"#000000")) +
+  scale_linetype_manual(values = c("solid", "solid", "solid")) +
+  xlab("Prey diversity") +
+  ylab("log-RSS") +
+  theme_minimal()
+line_ssf2
+```
+
+Typically these models would be interpreted independently. But it's worth noting that while the effects are minimal and the confidence intervals overlap, when comparing ssf1 and ssf2, the ssf2 provides more information about the animal's relationship with prey diversity.
+```{r, message = 'false'}
+# Plot
+line_ssf2 +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line(data = res, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed, linetype = Speed), size = 1) + 
+  geom_ribbon(data = res, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.2) +
+  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66", "black"), 
+                     labels = c("Fast", "Moderate", "Slow", "Not consid."), 
+                     name = "Speed") +
+  scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66", "black"), 
+                     labels = c("Fast", "Moderate", "Slow", "Not consid."), 
+                     name = "Speed") +
+  scale_linetype_manual(values = c("solid", "solid", "solid", "dotted"), 
+                     labels = c("Fast", "Moderate", "Slow", "Not consid."), 
+                     name = "Speed") 
+  
+```
+
+
+## HMM
+Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
+```{r, fig.show='hide'}
+# grab stationary probabilities
+ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
+state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
+state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
+state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
+
+# bind to one data frame
+pdat <- rbind(state1, state2, state3) %>%
+  mutate(state = as.character(state))
+```
+
+
+```{r, fig.show='hide'}
+# plot
+line_hmm <- ggplot() + 
+  geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
+  geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
+              alpha = 0.4, show.legend = TRUE) +
+  ylab("Stationary state probabilties") +
+  xlab("Prey diversity") +
+  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
+    scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
+                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
+  theme_minimal()
+
+line_hmm
+
+```
+
+
+
+# Prediction maps
+
+Now we will estimate the utilization distribution from each model to demonstrate the inference from each model. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficent with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrates the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). Luckily, amt has functions to estimate the SSUD.
 
 
 ## RSF
@@ -607,181 +785,6 @@ map_hmm <- ggplot() +
                                               'hmm_state3' = "Travel"))) +
   theme_void()
 map_hmm
-```
-
-
-# Prediction line plots
-Plotting a model's estimated relationship between the resource covariate and probability of selection can be useful for general ecological inference. We will calculate the log of the relative selection strength (log-RSS) for each selection function model. The log-RSS is a measure how how likely a step is to end in a proposed location (x1) to one a single reference location (x2), where zero indicates no preference, >1 indicates selection, and <1 indicates avoidance (Avgar et al. 2017, Fieberg et al. 2021). 
-
-## RSF
-Since the RSF does not incorporate movement, we will calculate the log-RSS of the movement-free habitat selection kernel. This is easily done using `log_rss()` from `amt`.
-```{r}
-
-# make a base dataframe to create x1 and x2 from
-base <- newfish %>% 
-  mutate(log_sl = log(45),
-         cos_ta = cos(1))
-
-# x1 is our original dataframe
-x1 <- base 
-
-# x2 holds prey diversity constant at its mean
-x2 <- base  %>% 
-  mutate(preydiv = mean(base$preydiv))
-
-# apply log_rss() to each row
-log_rss_list <- lapply(1:nrow(x1), function(i) {
-  # Calculate log-RSS for that row
-  xx <- log_rss(rsf1, x1[i,], x2[i,], ci = "se")
-  # Return the element $df
-  return(xx$df)
-})
-
-# combine rows
-res <- dplyr::bind_rows(log_rss_list)
-
-# plot
-line_rsf <- ggplot(res, aes(x = preydiv_x1, y = (log_rss))) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-  geom_line(size = 1, color = "#F8D59F",linetype = 2) +
-  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1), alpha = 0.4, fill = "#F8D59F") +
-  xlab("Prey diversity") +
-  ylab("log-RSS") +
-  theme_minimal()
-line_rsf
-```
-
-
-
-## SSF
-We can also calculate the log-RSS of a SSF following the same workflow as for the RSF. Since log_rss() passes to predict(), it is important that the fit SSF includes `model = TRUE`. 
-```{r}
-## log-RSS prediction for ssf1
-
-# apply log_rss() to each row
-log_rss_list <- lapply(1:nrow(x1), function(i) {
-  # Calculate log-RSS for that row
-  xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
-  # Return the element $df
-  return(xx$df)
-})
-
-# combine rows
-res <- dplyr::bind_rows(log_rss_list) %>%
-  mutate(Speed = "without int.")
-
-
-# plot
-line_ssf1 <- ggplot() +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
-  geom_line(data = res, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed), size = 1, linetype = 3, color = "black") + 
-  geom_ribbon(data = res, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.3, fill = "black") +
-  xlab("Prey diversity") +
-  ylab("log-RSS") +
-  theme_minimal()
-line_ssf1
-```
-
-For ssf2 (the model where prey diversity interacts with movement), we will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. 
-```{r}
-## log-RSS prediction for ssf2
-
-# determine the 25th (slow), 50th (moderate), and 75th (fast) percentiles of step-length
-nums = seal %>%
-  make_track(lon, lat, date) %>%
-  steps %>%
-  mutate(log_sl = log(sl_)) %>%
-  summarize(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
-  pull()
-
-# set-up to run function for each speed
-results_ssf2 <- lapply(nums, function(i) {
-x1$log_sl <- i
-
-# calculate log-RSS
-  log_rss_list <- lapply(1:nrow(x1), function(i) {
-    # Calculate log-RSS for that row
-    xx <- log_rss(ssf2, x1[i,], x2[i,], ci = "se")
-    # Return the element $df
-    return(xx$df)
-  })
-
-# bind rows within each speed's prediction
-res <- dplyr::bind_rows(log_rss_list)
-} )
-
-# bind rows of all speed's prediction
-results_ssf2 <- dplyr::bind_rows(results_ssf2) %>%
-  mutate(log_sl_x1 = as.factor(round(log_sl_x1,1)),
-         Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "slow",
-                                  as.factor(log_sl_x1) == "9.2" ~ "moderate",
-                                  as.factor(log_sl_x1) == "9.6" ~ "fast"))
-
-# plot
-line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-  geom_line(size = 1, aes(color = Speed, group = Speed, linetype = Speed)) +
-  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.3) +
-  scale_colour_manual(values=c(colours.states,"#000000")) +
-  scale_fill_manual(values=c(colours.states,"#000000")) +
-  scale_linetype_manual(values = c("solid", "solid", "solid")) +
-  xlab("Prey diversity") +
-  ylab("log-RSS") +
-  theme_minimal()
-line_ssf2
-```
-
-Typically these models would be interpreted independently. But it's worth noting that while the effects are minimal and the confidence intervals overlap, when comparing ssf1 and ssf2, the ssf2 provides more information about the animal's relationship with prey diversity.
-```{r, message = 'false'}
-# Plot
-line_ssf2 +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-  geom_line(data = res, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed, linetype = Speed), size = 1) + 
-  geom_ribbon(data = res, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.2) +
-  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66", "black"), 
-                     labels = c("Fast", "Moderate", "Slow", "Not consid."), 
-                     name = "Speed") +
-  scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66", "black"), 
-                     labels = c("Fast", "Moderate", "Slow", "Not consid."), 
-                     name = "Speed") +
-  scale_linetype_manual(values = c("solid", "solid", "solid", "dotted"), 
-                     labels = c("Fast", "Moderate", "Slow", "Not consid."), 
-                     name = "Speed") 
-  
-```
-
-
-## HMM
-Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
-```{r, fig.show='hide'}
-# grab stationary probabilities
-ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
-state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
-state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
-state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
-
-# bind to one data frame
-pdat <- rbind(state1, state2, state3) %>%
-  mutate(state = as.character(state))
-```
-
-
-```{r, fig.show='hide'}
-# plot
-line_hmm <- ggplot() + 
-  geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
-  geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
-              alpha = 0.4, show.legend = TRUE) +
-  ylab("Stationary state probabilties") +
-  xlab("Prey diversity") +
-  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
-    scale_fill_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travel")) +
-  theme_minimal()
-
-line_hmm
-
 ```
 
 

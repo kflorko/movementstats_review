@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "figures"
 author: "Katie Florko"
 date: "12/07/2023"
 output: html_document
@@ -9,22 +9,130 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+This script takes the plots made in Appendix 3 and formats, rearranges, and exports them as figures for the paper and supplemental material.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# Libraries
+```{r}
+library(ggplot2)
+library(cowplot)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Template
+```{r}
+
+p1 <- ggplot() + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        text = element_text(size=12),
+        strip.background = element_rect(colour = "white"),
+        legend.position = c(0.86, 0.82), 
+        legend.direction = "vertical", 
+        legend.background = element_blank()) 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# Fig. 4
+```{r}
+fig4a <- p1 + 
+  geom_tile(data = fish, aes(x = lon, y = lat, fill = preydiv)) +
+  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), breaks = c(0.5, 0.62, 0.75)) +
+  labs(fill = 'Prey\ndiversity') +
+  geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
+  geom_point(data=seal, aes(x=lon, y=lat), size=1.75, alpha = 0.6, color = "#FCEEAE") + 
+  geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.key.height=unit(0.3,"cm"),
+        legend.key.width = unit(0.4, "cm"),
+        legend.direction = "horizontal",
+        legend.position = c(0.80, 0.89)) +
+  ggtitle("A)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5))
+
+fig4b <- p1 + 
+  geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
+  geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_), alpha = 0.6) +
+  geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
+  scale_color_manual(values = c("#F1A97A", "#5B207C"), 
+                     label = c("Available", "Observed"), name = "Data type") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.position = c(0.80, 0.89)) +
+  ggtitle("B)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5)) 
+
+fig4c <- p1 + 
+  geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.6) +
+  geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
+  scale_color_manual(values = c("#F1A97A", "#5B207C"), 
+                     label = c("Available", "Observed"), name = "Data type") +
+  geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme(legend.position = c(0.80, 0.89)) +
+  ggtitle("C)") +
+  ylab(" \n \n  ") + xlab("") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  guides(fill = guide_colourbar(title.position="top", 
+         title.hjust = 0.5), 
+         size = guide_legend(title.position="top", title.hjust = 0.5)) 
+
+
+res_both <- dplyr::bind_rows(res1 %>% mutate(Model = "RSF"),
+                      res2 %>% mutate(Model = "SSF"))
+
+fig4d <- ggplot() + theme_minimal() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line(data = res_both, aes(x = preydiv_x1, y = log_rss, color = Model), size = 1, linetype = 2) +
+  geom_ribbon(data = res_both, aes(y = log_rss, ymin=lwr, ymax=upr, x=preydiv_x1, fill = Model), alpha = 0.4) +
+  scale_color_manual(values = c("#BE496F", "#F8D59F")) +
+  scale_fill_manual(values = c("#BE496F", "#F8D59F")) +
+  xlab("Prey diversity") +
+  ylab("\nlog-RSS") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  ggtitle("D)") +
+  theme(legend.position = c(0.15, 0.88)) +
+  xlim(0.55, 0.70) +
+  ylim(-2.5, 2.5)
+
+fig4e <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
+  theme_minimal() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray")  +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.5) +
+  geom_line(size = 1, aes(color = Speed, group = Speed)) +
+  scale_fill_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast')) +
+  scale_color_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast')) +
+  xlab("Prey diversity") +
+  ylab("\nlog-RSS") +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  ggtitle("E)") +
+  theme(legend.position = c(0.2, 0.84)) +
+  xlim(0.55, 0.70) +
+  ylim(-2.5, 2.5)
+
+fig4f <- line_hmm +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  ggtitle("F)") +
+  theme(legend.position = c(0.28, 0.84)) +
+  ylab("\nStationary state probabilities") 
+
+tiff(file = "movementstats_review/figures/asus_fig4.tiff", units="in", width=7, height=6, res=500)
+plot_grid(fig4a, fig4b, fig4c, fig4d, fig4e, fig4f, ncol = 3)
+dev.off()
+```
+
