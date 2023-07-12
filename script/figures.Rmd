@@ -140,14 +140,14 @@ dev.off()
 ```{r}
 fig5a <- p1 +
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "RSF prediction", limits = c(0, 0.3), breaks = c(0.0, 0.15, 0.3)) +
+  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", limits = c(0, 0.3), breaks = c(0.0, 0.15, 0.3)) +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("A)") +
+  ggtitle("A) RSF") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -158,14 +158,14 @@ fig5a <- p1 +
 
 fig5b <- p1 + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "SSF1 prediction", breaks = c(0,0.06,0.12)) +
+  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", breaks = c(0,0.06,0.12)) +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("A)") +
+  ggtitle("B) SSF") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -189,7 +189,7 @@ fig5c <- p1 +
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "vertical",
         legend.position = c(0.3, 0.1)) +
-  ggtitle("C)") +
+  ggtitle("C) HMM decoded states") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -201,14 +201,14 @@ fig5d <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state1"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'HMM predicted\nprobability') +
+  labs(fill = 'Predicted\nprobability') +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("D)") +
+  ggtitle("D) HMM state: Localized search") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -220,14 +220,14 @@ fig5e <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state2"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'HMM predicted\nprobability') +
+  labs(fill = 'Predicted\nprobability') +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("E)") +
+  ggtitle("E) HMM state: Area-restricted search") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -239,14 +239,14 @@ fig5f <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state3"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'HMM predicted\nprobability') +
+  labs(fill = 'Predicted\nprobability') +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("F)") +
+  ggtitle("F) HMM state: Travelling") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
