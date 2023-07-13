@@ -1,0 +1,68 @@
+---
+title: "create_studyarea"
+author: "Katie Florko"
+date: "12/07/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# libraries
+library(tidyterra)
+library(terra)
+library(ggplot2)
+
+#grab canada data
+world <- ne_countries(scale = "medium", returnclass = "sf")
+canada <- subset(world, admin == "Canada")
+canada <- terra::vect(canada)
+
+# convert fish to latlon
+fish_tes <- terra::rast(fish, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+fish_test <- terra::project(fish_tes, canada) 
+
+# increase fish resolution
+r2 <- fish_test
+res(r2) <- 0.1
+fishres <- resample(fish_test, r2, method = "near")
+
+# crop to remove land
+test2 <- terra::mask(fishres, canada, inverse = TRUE, updatevalue = 1)
+
+# extend to outside of the study area
+test3 <- terra::extend(test2, (ext(test2) +1), fill = 1)
+plot(test3)
+
+
+# recode the areas outside of the study area
+test3$studyarea <- terra::ifel(test3$preydiv >= 1, 0,1)
+test3$preydiv_all <- terra::extend(resample(fish_test, r2, method = "near"), (ext(test2) +1), fill = 1)
+
+fish_raster_ext <- test3 %>% rename(preydiv_cropped = preydiv,
+       preydiv = preydiv_all)
+
+fish_raster_ext <- terra::project(fish_raster_ext, crs(fish_tes), method = "near")
+plot(fish_raster_ext)
+
+# plot
+ggplot() + 
+  geom_spatraster(data = fish_raster_ext) +
+  #scale_fill_viridis(option = "mako", name = "Prey\ndiversity") +
+ # geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = NA, color = "white") +
+ # coord_sf(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  facet_wrap(~lyr)
+
+fish_ext <- terra::as.data.frame(fish_raster_ext, xy = TRUE) 
+summary(fish_ext)
+
+ggplot() + 
+  geom_tile(data = fish_ext, aes(x = x,y = y, fill = preydiv_cropped)) +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = NA, color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+
+```
+

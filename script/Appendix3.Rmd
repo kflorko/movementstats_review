@@ -660,11 +660,11 @@ start <- make_start((seal %>%
 # generate redistribution kernel
 k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
                             stochastic = TRUE,
-                            tolerance.outside = 0.1,
-                            n.control = 1e3)
+                            tolerance.outside = 0.7,
+                            n.control = 1e4)
 
 # Now simulate a path of length 1e3
-n_steps = 1e3
+n_steps = 1e4
 n_steps1 = n_steps + 1
 set.seed(2023)
 p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
