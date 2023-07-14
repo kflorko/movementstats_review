@@ -483,6 +483,7 @@ line_ssf1
 
 For ssf2 (the model with movement-related covariates), we will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. 
 ```{r}
+
 ## log-RSS prediction for ssf2
 
 # determine the 25th (slow), 50th (moderate), and 75th (fast) percentiles of step-length
@@ -493,9 +494,22 @@ nums = seal %>%
   summarize(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
   pull()
 
+
 # set-up to run function for each speed
-results_ssf2 <- lapply(nums, function(i) {
-x1$log_sl <- i
+results_ssf2 <- lapply(nums, function(perc) {
+  
+  # make a base dataframe to create x1 and x2 from
+base <- newfish %>% 
+  mutate(log_sl = log(45),
+         cos_ta = cos(1))
+
+# x1 is our original dataframe
+x1 <- base 
+
+# x2 holds prey diversity constant at its mean
+x2 <- base  %>% 
+  mutate(preydiv = mean(base$preydiv),
+         log_sl = perc)
 
 # calculate log-RSS
   log_rss_list <- lapply(1:nrow(x1), function(i) {
@@ -510,11 +524,10 @@ res3 <- dplyr::bind_rows(log_rss_list)
 } )
 
 # bind rows of all speed's prediction
-results_ssf2 <- dplyr::bind_rows(results_ssf2) %>%
-  mutate(log_sl_x1 = as.factor(round(log_sl_x1,1)),
-         Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "slow",
-                                  as.factor(log_sl_x1) == "9.2" ~ "moderate",
-                                  as.factor(log_sl_x1) == "9.6" ~ "fast"))
+results_ssf2 <- dplyr::bind_rows(results_ssf2, .id = "id") %>%
+  mutate(Speed = dplyr::case_when(as.factor(id) == '25%' ~ "slow",
+                                  as.factor(id) == "50%" ~ "moderate",
+                                  as.factor(id) == "75%" ~ "fast"))
 
 # plot
 line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
@@ -571,7 +584,7 @@ pdat <- rbind(state1, state2, state3) %>%
 ```
 
 
-```{r}
+```{r, fig.show = 'asis'}
 # plot
 line_hmm <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
