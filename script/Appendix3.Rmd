@@ -35,6 +35,7 @@ library(rgdal)
 library(terra)
 library(sf)
 library(viridis)
+library(ggplot2)
 
 # fitting models
 library(amt) # for selection functions
@@ -624,7 +625,7 @@ map_rsf
 ```
 
 ## SSF
-We will first estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel. We need to refit our SSF model to include terms for the home range in order to make sure our simulated track stays within our study area. 
+We will first estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel. 
 
 ```{r}
 # generate availability sample
@@ -635,45 +636,44 @@ data_ssf <- seal %>%
   steps() %>%
   random_steps() %>% 
   arrange(case_) %>%
-  amt::extract_covariates(fish_raster, where = "both") %>%
-  na.omit() 
+  amt::extract_covariates(fish_raster, where = "both") 
 
 # fit SSF1 model
 m1 <- data_ssf |> 
   fit_clogit(case_ ~ preydiv_end +  cos(ta_) + log(sl_) + 
-              # add terms for home range
-               x2_ + y2_ + I(x2_^2 + y2_^2) +
                strata(step_id_))
 ```
 
 We will now simulate a track and visually observe it.
 ```{r}
 # set starting position for the simulation
-set.seed(2023)
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
-                       make_track(lon, lat, date))
-                          # random sample along the track as the start
-                          [sample(1:nrow(seal), 1), ], 
-                    dt_ = hours(2)) 
+                       make_track(lon, lat, date))[1,]) 
+
+# set constants
+n_steps = 1e3 # number of steps
+n_steps1 = n_steps + 1 # number of steps + 1
+burnin <- n_steps/50 # number of steps to remove for the burn-in
 
 # generate redistribution kernel
 k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
                             stochastic = TRUE,
-                            tolerance.outside = 0.7,
-                            n.control = 1e4)
+                            tolerance.outside = 1,
+                            n.control = n_steps)
 
-# Now simulate a path of length 1e3
-n_steps = 1e4
-n_steps1 = n_steps + 1
+# simulate path
 set.seed(2023)
 p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
+
+# burn-in
+p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
 
 # plot simulated track
 ssf_track_1 <- fishmap +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  geom_point(data = p1, aes(x = x_,y = y_), alpha = 0.61) +
-  geom_path(data = p1, aes(x = x_,y = y_)) +
+  geom_point(data = p1_burnt, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p1_burnt, aes(x = x_,y = y_)) +
   theme_void()
 ssf_track_1
 ```
@@ -681,9 +681,9 @@ ssf_track_1
 We can see that it mostly stays within the study area. We will use this track to estimate the SSUD, and visualize the results.
 ```{r}
 # estimate SSUD
-uds_ssf1 <- tibble(rep = 1:n_steps1, 
-    x_ = p1$x_, y_ = p1$y_,
-    t_ = p1$t_, dt = p1$dt) |> 
+uds_ssf1 <- tibble(rep = 1:(n_steps1-burnin), 
+    x_ = p1_burnt$x_, y_ = p1_burnt$y_,
+    t_ = p1_burnt$t_, dt = p1_burnt$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
   hr_kde(trast = fish_raster, which_min = "global") %>%
@@ -705,47 +705,43 @@ We will follow the same steps to generate a SSUD for the SSF that allows prey di
 ```{r}
 # fit SSF2 model
 m2 <- data_ssf |> 
-  fit_clogit(case_ ~ preydiv_end +  cos(ta_)+
-               preydiv_end:log(sl_) + 
-               # add terms for home range
-               x2_ + y2_ + I(x2_^2 + y2_^2) +
-               strata(step_id_))
+  fit_clogit(case_ ~ preydiv_end*log(sl_) +  cos(ta_) + strata(step_id_))
 
 
 # set starting position for the simulation
 set.seed(2023)
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
-                       make_track(lon, lat, date))
-                          # first location of the track as the start
-                          [sample(1:nrow(seal), 1), ], 
-                    dt_ = hours(2)) 
+                       make_track(lon, lat, date))[1,])
 
 # generate redistribution kernel
 k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
                             stochastic = TRUE, 
-                            tolerance.outside = 0.3,
-                            n.control = 1e3)
+                            tolerance.outside = 1,
+                            n.control = n_steps)
 
-# Now simulate a path of length 1e3
-n_steps = 1e3
-n_steps1 = n_steps + 1
+# simulate path
 set.seed(2023)
-p2 <- amt::simulate_path(x = k2, n = n_steps, start = start)
+p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE)
+
+# burn-in
+p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
+
+
 
 # plot simulated track
 ssf_track_2 <- fishmap +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  geom_point(data = p2, aes(x = x_,y = y_), alpha = 0.61) +
-  geom_path(data = p2, aes(x = x_,y = y_)) +
+  geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p2_burnt, aes(x = x_,y = y_)) +
   theme_void()
 ssf_track_2
 
 
 # estimate SSUD
-uds_ssf2 <- tibble(rep = 1:n_steps1, 
-    x_ = p1$x_, y_ = p1$y_,
-    t_ = p1$t_, dt = p1$dt) |> 
+uds_ssf2 <- tibble(rep = 1:(n_steps1-burnin), 
+    x_ = p2_burnt$x_, y_ = p2_burnt$y_,
+    t_ = p2_burnt$t_, dt = p2_burnt$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
   hr_kde(trast = fish_raster, which_min = "local") %>%
