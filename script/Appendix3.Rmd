@@ -646,6 +646,8 @@ m1 <- data_ssf |>
 ```
 
 We will now simulate a track and visually observe it. Our simulation in this tutorial has 10,000 locations and takes about five minutes to run, however, more steps are recommended (Signer et al. 2017). We kept this tutorial with 10,000 locations due to computation demands. The SSUDs in our paper were generated using include 100,000 locations.
+
+Note that with out track, since we kept our simualation within the study area, we have a slight boundary effect, where more points are present along the boundary of the study area because the simulation bounces back from the edges. 
 ```{r}
 # set starting position for the simulation
 start <- make_start((seal %>%
@@ -665,7 +667,9 @@ k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
 
 # simulate path
 set.seed(2023)
-p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
+p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
+#p1 <- read.csv(here("data/p1.csv")) %>% as_tibble()
+
 
 # burn-in
 p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
@@ -723,7 +727,9 @@ k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
 
 # simulate path
 set.seed(2023)
-p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE)
+p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
+#p2 <- read.csv(here("data/p2.csv")) %>% as_tibble()
+
 
 # burn-in
 p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
