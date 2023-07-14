@@ -48,7 +48,7 @@ library(momentuHMM) # for hidden Markov model
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
 # load fish data
-fish <- read.csv(here("data/fish"))
+fish <- read.csv(here("data/fish.csv"))
 
 ```
 
@@ -571,7 +571,7 @@ pdat <- rbind(state1, state2, state3) %>%
 ```
 
 
-```{r, fig.show='hide'}
+```{r}
 # plot
 line_hmm <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
@@ -617,7 +617,7 @@ newfish$rsf_prediction <-range01(x)
 # plot
 map_rsf <- ggplot() + 
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "RSF prediction", limits = c(0, 0.3)) +
+  scale_fill_viridis(option = "mako", name = "RSF prediction") +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme_void()
