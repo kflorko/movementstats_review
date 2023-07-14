@@ -48,7 +48,7 @@ library(momentuHMM) # for hidden Markov model
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
 # load fish data
-fish <- read.csv(here("data/preydiv.csv"))
+fish <- read.csv(here("data/fish"))
 
 ```
 
@@ -823,5 +823,5 @@ Signer, J., Fieberg, J., & Avgar, T. (2017). Estimating utilization distribution
 <div style="text-indent: -40px; padding-left: 40px;">
 Signer, J., J. Fieberg, and T. Avgar. (2019). Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution, 9:880–890.  https://doi.org/10.1002/ece3.4823 </div>
 
-<div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
+<div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of Wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
 
