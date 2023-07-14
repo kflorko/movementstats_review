@@ -1,0 +1,144 @@
+---
+title: "pathsimulation_1e5"
+author: "Katie Florko"
+date: "13/07/2023"
+output: html_document
+---
+
+We will first estimate the SSUDs from the simple SSF without movement-related covariates. 
+
+```{r}
+# generate availability sample
+set.seed(2023)
+data_ssf <- seal %>%
+  mutate(date = as.POSIXct(date)) %>%
+  make_track(lon, lat, date) %>%
+  steps() %>%
+  random_steps() %>% 
+  arrange(case_) %>%
+  amt::extract_covariates(fish_raster, where = "both") 
+
+# fit SSF1 model
+m1 <- data_ssf |> 
+  fit_clogit(case_ ~ preydiv_end +  cos(ta_) + log(sl_) + 
+               strata(step_id_))
+```
+
+We will now simulate a track and visually observe it. Our simulation in this tutorial has 10,000 locations and takes about five minutes to run, however, more steps are recommended (Signer et al. 2017). We kept this tutorial with 10,000 locations due to computation demands. The SSUDs in our paper were generated using include 100,000 locations.
+
+Note that with out track, since we kept our simualation within the study area, we have a slight boundary effect, where more points are present along the boundary of the study area because the simulation bounces back from the edges. 
+```{r}
+# set starting position for the simulation
+start <- make_start((seal %>%
+                       mutate(date = as.POSIXct(date)) %>%
+                       make_track(lon, lat, date))[1,]) 
+
+# set constants
+n_steps = 1e5 # number of steps
+n_steps1 = n_steps + 1 # number of steps + 1
+burnin <- n_steps/50 # number of steps to remove for the burn-in
+
+# generate redistribution kernel
+k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
+                            stochastic = TRUE,
+                            tolerance.outside = 1,
+                            n.control = n_steps)
+
+# simulate path
+set.seed(2023)
+p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
+#p1 <- read.csv(here("data/p1.csv")) %>% as_tibble()
+
+
+# burn-in
+p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
+
+# plot simulated track
+ssf_track_1 <- fishmap +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_point(data = p1_burnt, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p1_burnt, aes(x = x_,y = y_)) +
+  theme_void()
+ssf_track_1
+```
+
+We can see that it mostly stays within the study area. We will use this track to estimate the SSUD, and visualize the results.
+```{r}
+# estimate SSUD
+uds_ssf1 <- tibble(rep = 1:(n_steps1-burnin), 
+    x_ = p1_burnt$x_, y_ = p1_burnt$y_,
+    t_ = p1_burnt$t_, dt = p1_burnt$dt) |> 
+  filter(!is.na(x_)) |> 
+  make_track(x_, y_) |> 
+  hr_kde(trast = fish_raster, which_min = "global") %>%
+  hr_ud() %>% 
+  terra::as.data.frame(xy = TRUE)
+
+# plot SSUD
+map_ssf1 <- ggplot() + 
+  geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
+  scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme_void()
+map_ssf1
+```
+
+
+We will follow the same steps to generate a SSUD for the SSF with movement-related covariates.
+```{r}
+# fit SSF2 model
+m2 <- data_ssf |> 
+  fit_clogit(case_ ~ preydiv_end*log(sl_) +  cos(ta_) + strata(step_id_))
+
+
+# set starting position for the simulation
+set.seed(2023)
+start <- make_start((seal %>%
+                       mutate(date = as.POSIXct(date)) %>%
+                       make_track(lon, lat, date))[1,])
+
+# generate redistribution kernel
+k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
+                            stochastic = TRUE, 
+                            tolerance.outside = 1,
+                            n.control = n_steps)
+
+# simulate path
+set.seed(2023)
+p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
+#p2 <- read.csv(here("data/p2.csv")) %>% as_tibble()
+
+
+# burn-in
+p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
+
+# plot simulated track
+ssf_track_2 <- fishmap +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p2_burnt, aes(x = x_,y = y_)) +
+  theme_void()
+ssf_track_2
+
+
+# estimate SSUD
+uds_ssf2 <- tibble(rep = 1:(n_steps1-burnin), 
+    x_ = p2_burnt$x_, y_ = p2_burnt$y_,
+    t_ = p2_burnt$t_, dt = p2_burnt$dt) |> 
+  filter(!is.na(x_)) |> 
+  make_track(x_, y_) |> 
+  hr_kde(trast = fish_raster, which_min = "local") %>%
+  hr_ud() %>% 
+  terra::as.data.frame(xy = TRUE)
+
+# plot SSUD
+map_ss2 <- ggplot() + 
+  geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
+  scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
+  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  theme_void()
+map_ss2
+
+```
