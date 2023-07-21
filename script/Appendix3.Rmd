@@ -35,7 +35,6 @@ library(rgdal)
 library(terra)
 library(sf)
 library(viridis)
-library(ggplot2)
 
 # fitting models
 library(amt) # for selection functions
@@ -48,7 +47,7 @@ library(momentuHMM) # for hidden Markov model
 Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
 ```{r}
 # load fish data
-fish <- read.csv(here("data/fish.csv"))
+fish <- read.csv(here("data/preydiv.csv"))
 
 ```
 
@@ -158,7 +157,6 @@ data_ssf_map
 
 We can see that the availability sample is generated at each step and is not restricted to the minimum convex polygon.
 
-We will fit two SSFs: one without movement-related covariates, and one with movement-related covariates, where we add an interaction between prey diversity and log(step length).
 ```{r, message = FALSE}
 # extract prey diversity covariate
 data_ssf <- data_ssf %>%
@@ -170,11 +168,11 @@ data_ssf <- data_ssf %>%
          log_sl = log(sl_))
 
 # fit ssfs
-## ssf1: without movement-related covariate
+## ssf1: ssf without covariate affecting movement kernel
 ssf1 <- data_ssf %>%
   fit_clogit(case_ ~ preydiv + log_sl + cos_ta + strata(step_id_), model = TRUE)
 
-## ssf2:  with movement-related covariate
+## ssf2: ssf with covariate affecting movement kernel
 ssf2 <- data_ssf %>%
   fit_clogit(case_ ~ preydiv*log_sl + cos_ta + strata(step_id_), model = TRUE)
 
@@ -481,9 +479,8 @@ line_ssf1 <- ggplot() +
 line_ssf1
 ```
 
-For ssf2 (the model with movement-related covariates), we will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. 
+For ssf2 (the model where prey diversity interacts with movement), we will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. 
 ```{r}
-
 ## log-RSS prediction for ssf2
 
 # determine the 25th (slow), 50th (moderate), and 75th (fast) percentiles of step-length
@@ -494,22 +491,9 @@ nums = seal %>%
   summarize(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
   pull()
 
-
 # set-up to run function for each speed
-results_ssf2 <- lapply(nums, function(perc) {
-  
-  # make a base dataframe to create x1 and x2 from
-base <- newfish %>% 
-  mutate(log_sl = log(45),
-         cos_ta = cos(1))
-
-# x1 is our original dataframe
-x1 <- base 
-
-# x2 holds prey diversity constant at its mean
-x2 <- base  %>% 
-  mutate(preydiv = mean(base$preydiv),
-         log_sl = perc)
+results_ssf2 <- lapply(nums, function(i) {
+x1$log_sl <- i
 
 # calculate log-RSS
   log_rss_list <- lapply(1:nrow(x1), function(i) {
@@ -524,10 +508,11 @@ res3 <- dplyr::bind_rows(log_rss_list)
 } )
 
 # bind rows of all speed's prediction
-results_ssf2 <- dplyr::bind_rows(results_ssf2, .id = "id") %>%
-  mutate(Speed = dplyr::case_when(as.factor(id) == '25%' ~ "slow",
-                                  as.factor(id) == "50%" ~ "moderate",
-                                  as.factor(id) == "75%" ~ "fast"))
+results_ssf2 <- dplyr::bind_rows(results_ssf2) %>%
+  mutate(log_sl_x1 = as.factor(round(log_sl_x1,1)),
+         Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "slow",
+                                  as.factor(log_sl_x1) == "9.2" ~ "moderate",
+                                  as.factor(log_sl_x1) == "9.6" ~ "fast"))
 
 # plot
 line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
@@ -584,7 +569,7 @@ pdat <- rbind(state1, state2, state3) %>%
 ```
 
 
-```{r, fig.show = 'asis'}
+```{r, fig.show='hide'}
 # plot
 line_hmm <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
@@ -606,11 +591,11 @@ line_hmm
 
 # Prediction maps
 
-Now we will estimate the utilization distribution from each model to demonstrate the inference from each model. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficent with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrates the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). Luckily, amt has functions to estimate the SSUD.
+Now we will estimate the utilization distribution from each model to demonstrate the inference from each model. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficient with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrate the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). `amt` has functions to estimate the SSUD.
 
 
 ## RSF
-Now we will predict the estimated probability of use from the RSF by hand.
+We can predict the estimated probability of use from the RSF by hand.
 ```{r}
 # grab model coefficients
 modcoef <- summary(rsf1)$coef
@@ -630,7 +615,7 @@ newfish$rsf_prediction <-range01(x)
 # plot
 map_rsf <- ggplot() + 
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "RSF prediction") +
+  scale_fill_viridis(option = "mako", name = "RSF prediction", limits = c(0, 0.3)) +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme_void()
@@ -639,7 +624,7 @@ map_rsf
 ```
 
 ## SSF
-We will first estimate the SSUDs from the simple SSF without movement-related covariates. 
+We can use the `amt` functions to estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel. 
 
 ```{r}
 # generate availability sample
@@ -650,7 +635,8 @@ data_ssf <- seal %>%
   steps() %>%
   random_steps() %>% 
   arrange(case_) %>%
-  amt::extract_covariates(fish_raster, where = "both") 
+  amt::extract_covariates(fish_raster, where = "both") # %>%
+  #na.omit() 
 
 # fit SSF1 model
 m1 <- data_ssf |> 
@@ -658,34 +644,30 @@ m1 <- data_ssf |>
                strata(step_id_))
 ```
 
-We will now simulate a track and visually observe it. Our simulation in this tutorial has 10,000 locations and takes about five minutes to run, however, more steps are recommended (Signer et al. 2017). We kept this tutorial with 10,000 locations due to computation demands. The SSUDs in our paper were generated using include 100,000 locations.
-
-Note that with out track, since we kept our simualation within the study area, we have a slight boundary effect, where more points are present along the boundary of the study area because the simulation bounces back from the edges. 
+We will now simulate a track and visually observe it.
 ```{r}
 # set starting position for the simulation
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
                        make_track(lon, lat, date))[1,]) 
 
-# set constants
-n_steps = 1e4 # number of steps
-n_steps1 = n_steps + 1 # number of steps + 1
-burnin <- n_steps/50 # number of steps to remove for the burn-in
+# Set constants
+n_steps = 1e3 # number of steps
+n_steps1 = n_steps + 1 # number of steps +1
+burnin <- n_steps/50 # number of locations to remove for burn-in
 
 # generate redistribution kernel
 k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
                             stochastic = TRUE,
                             tolerance.outside = 1,
-                            n.control = n_steps)
+                            n.control = 1e3)
 
 # simulate path
 set.seed(2023)
-p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
-#p1 <- read.csv(here("data/p1.csv")) %>% as_tibble()
-
+p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
 
 # burn-in
-p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
+p1_burnt <- p1 %>% slice(-c(1:burnin))
 
 # plot simulated track
 ssf_track_1 <- fishmap +
@@ -699,9 +681,9 @@ ssf_track_1
 We can see that it mostly stays within the study area. We will use this track to estimate the SSUD, and visualize the results.
 ```{r}
 # estimate SSUD
-uds_ssf1 <- tibble(rep = 1:(n_steps1-burnin), 
-    x_ = p1_burnt$x_, y_ = p1_burnt$y_,
-    t_ = p1_burnt$t_, dt = p1_burnt$dt) |> 
+uds_ssf1 <- tibble(rep = 1:n_steps1, 
+    x_ = p1$x_, y_ = p1$y_,
+    t_ = p1$t_, dt = p1$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
   hr_kde(trast = fish_raster, which_min = "global") %>%
@@ -719,11 +701,13 @@ map_ssf1
 ```
 
 
-We will follow the same steps to generate a SSUD for the SSF with movement-related covariates.
+We will follow the same steps to generate a SSUD for the SSF that allows prey diversity to affect the movement kernel.
 ```{r}
 # fit SSF2 model
 m2 <- data_ssf |> 
-  fit_clogit(case_ ~ preydiv_end*log(sl_) +  cos(ta_) + strata(step_id_))
+  fit_clogit(case_ ~ preydiv_end +  cos(ta_)+
+               preydiv_end:log(sl_) + 
+               strata(step_id_))
 
 
 # set starting position for the simulation
@@ -736,30 +720,27 @@ start <- make_start((seal %>%
 k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
                             stochastic = TRUE, 
                             tolerance.outside = 1,
-                            n.control = n_steps)
+                            n.control = 1e3)
 
-# simulate path
+# Now simulate a path of length 1e3
+n_steps = 1e3
+n_steps1 = n_steps + 1
 set.seed(2023)
-p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
-#p2 <- read.csv(here("data/p2.csv")) %>% as_tibble()
-
-
-# burn-in
-p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
+p2 <- amt::simulate_path(x = k2, n = n_steps, start = start)
 
 # plot simulated track
 ssf_track_2 <- fishmap +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61) +
-  geom_path(data = p2_burnt, aes(x = x_,y = y_)) +
+  geom_point(data = p2, aes(x = x_,y = y_), alpha = 0.61) +
+  geom_path(data = p2, aes(x = x_,y = y_)) +
   theme_void()
 ssf_track_2
 
 
 # estimate SSUD
-uds_ssf2 <- tibble(rep = 1:(n_steps1-burnin), 
-    x_ = p2_burnt$x_, y_ = p2_burnt$y_,
-    t_ = p2_burnt$t_, dt = p2_burnt$dt) |> 
+uds_ssf2 <- tibble(rep = 1:n_steps1, 
+    x_ = p2$x_, y_ = p2$y_,
+    t_ = p2$t_, dt = p2$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
   hr_kde(trast = fish_raster, which_min = "local") %>%
@@ -836,5 +817,5 @@ Signer, J., Fieberg, J., & Avgar, T. (2017). Estimating utilization distribution
 <div style="text-indent: -40px; padding-left: 40px;">
 Signer, J., J. Fieberg, and T. Avgar. (2019). Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution, 9:880–890.  https://doi.org/10.1002/ece3.4823 </div>
 
-<div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of Wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
+<div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
 
