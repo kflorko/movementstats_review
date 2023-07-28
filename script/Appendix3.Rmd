@@ -289,7 +289,7 @@ hmmstate_plot
 
 Plot a histogram of step lengths for each state. In order to do this, we need to transform the movement data to UTM and refit our HMM in order to get step length in a meaningful unit (i.e., kilometers).
 
-*MAM: see comment above re km. Also, this needs to be broken down and explained. You need to talk about what you are doing, the arguments of the main functions, and interpret the results. As for main text, please change the name of the 3 behaviours.*
+*MAM: see comment above re km. Also, this needs to be broken down and explained. You need to talk about what you are doing, the arguments of the main functions, and interpret the results. As for main text, please change the name of the 3 behaviours. Also, it may be more straightforward if for some of these figures you just use the functions from momentuHMM, rather than you own plot functions (less code). I don't think it matters is the colours don't match the paper, and you can refer the reader to another script with the details to recreate your exact figures.*
 ```{r, message = FALSE}
 ## prep data in lat/lon and refit model (so step length is in kilometers)
 data_hmm <- seal %>%
