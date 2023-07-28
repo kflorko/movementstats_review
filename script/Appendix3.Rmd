@@ -218,6 +218,8 @@ summary(ssf2)
 
 ## HMM
 Finally, we will fit the HMM using momentuHMM (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. 
+
+*MAM: you need to break this down and explain the steps. I would include the two-state HMM that you fitted and show how you decided that it should be 3 states. Also, really you'd want to have it in km in the first time. The HMM is mostly dividing the state based on speed, so km would make more sense. This also means that the SSF would make more sense in KM. I would do the KM transformation above (I thought that's what you were doing with you projection, and do all analysis in km).*
 ```{r, message = FALSE}
 # prepare dataset
 data_hmm <- seal %>%
@@ -285,7 +287,9 @@ hmmstate_plot <- ggplot() +
 hmmstate_plot
 ```
 
-Plot a histogram of step lengths for each state. In order to do this, we need to transform the movement data to UTM and refit our HMM in order to get step length in a meaningful unit (i.e., kilometers)
+Plot a histogram of step lengths for each state. In order to do this, we need to transform the movement data to UTM and refit our HMM in order to get step length in a meaningful unit (i.e., kilometers).
+
+*MAM: see comment above re km. Also, this needs to be broken down and explained. You need to talk about what you are doing, the arguments of the main functions, and interpret the results. As for main text, please change the name of the 3 behaviours.*
 ```{r, message = FALSE}
 ## prep data in lat/lon and refit model (so step length is in kilometers)
 data_hmm <- seal %>%
