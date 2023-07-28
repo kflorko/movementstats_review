@@ -118,7 +118,10 @@ data_rsf_map <- sealfishmap +
 data_rsf_map
 ```
 
-We can see that the availability sample is generated within the minimum convex polygon of the used samples. *MAM: if you are using the fish as a rater in all analyses, I would move that up in the set-up section.*
+We can see that the availability sample is generated within the minimum convex polygon of the used samples. *MAM: if you are using the fish as a rater in all analyses, I would move that up in the set-up section. Also, why are you using WSG$ here, but LAEA above? Is there a mismatch in your projections?*
+
+We now extract covariates for the used and available locations.
+
 ```{r}
 # rasterize and extract prey diversity covariate
 fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
@@ -148,6 +151,9 @@ summary(rsf1)
 ## SSF
 Next we will fit our two SSFs. The workflow is similar to that of the RSF.
 
+*MAM: explain the arrange(case_) and how that's the key difference (I think from the RSF). Also if you have warning message, try to fix them as much as possible, or explain them in the tutorial, because the users will have the warning messages and won't understand why if you just make RMarkdown not print them.*
+
+
 ```{r, message = FALSE}
 # prep data and generate availability sample
 set.seed(2023)
@@ -156,7 +162,11 @@ data_ssf <- seal %>%
   steps() %>% # convert track data to step format (i.e., with a start and an end)
   random_steps() %>% # generate availability sample 
   arrange(case_)
+```
 
+It always helps to visualized the sample created.
+
+```{r}
 # plot used vs available locations on-top of prey diversity
 data_ssf_map <- sealfishmap +
   geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.6) +
@@ -167,16 +177,29 @@ data_ssf_map
 
 We can see that the availability sample is generated at each step and is not restricted to the minimum convex polygon.
 
+*MAM: in text you said that you sampled more and than just kept those in water, are you skipping that step here?*
+
+We now extract covariates for the used and available locations.
+
 ```{r, message = FALSE}
 # extract prey diversity covariate
 data_ssf <- data_ssf %>%
   extract_covariates(fish_raster, where = "end") #sample at end of step
 
+```
+
+*MAM: what are you doing here. I feel that's pretty key to understanding the movement kernel, no?*
+
+```{r}
 # transform movement covariates
 data_ssf <- data_ssf %>%
   mutate(cos_ta = cos(ta_),
          log_sl = log(sl_))
+```
 
+*MAM: you need to explain the arguments of the fit_clogit, and explain the strata, and talk about the movement kernel. Also FYI: I think the observations with no fish data are deleted (see "2 observations deleted due to missingness"). You might want to remove these (see comment above) and/or talk about it.*
+
+```{r}
 # fit ssfs
 ## ssf1: ssf without covariate affecting movement kernel
 ssf1 <- data_ssf %>%
@@ -191,6 +214,7 @@ summary(ssf1)
 summary(ssf2)
 ```
 
+*MAM: Interpret the results, similar to the RSF comment. But in addition, here you have much more results, you want to explain how you interpret the coef and exp(coef), etc*
 
 ## HMM
 Finally, we will fit the HMM using momentuHMM (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. 
@@ -565,7 +589,7 @@ ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 ## HMM
-Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`. *MAM: citation*
+Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
 ```{r, fig.show='hide'}
 # grab stationary probabilities
 ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
