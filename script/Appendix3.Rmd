@@ -95,12 +95,13 @@ sealfishmap
 ```
 
 # Fit models
-We will fit four models: 1) a resource selection function (RSF), 2) a step selection function (SSF), 3) a SSF that allows the habitat covariate to affect movement, and 4) a hidden Markov model (HMM). All four of these models will include prey diversity as a covariate. 
+We will fit four models: 1) a resource selection function (RSF), 2) a step selection function (SSF) without habitat covariates in the movement kernel, 3) a SSF with a habitat covariate modifying the movement kernel, and 4) a hidden Markov model (HMM). All four of these models will include prey diversity as a covariate. 
+
+All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019), while the HMM will use the functions from the `momentuHMM` package. *MAM: citation*. 
 
 ## RSF
-We will fit the RSF first, as it is the most simple of the four models. In preparation, we will generate an availability sample, create a map to visualize the spatial distribution of the used and available locations, and extract covariates for the used and available locations. Next, we will fit the model and view the model summary.
+The RSF is the simplest of the four models. Fitting an RSF to movement data first requires us to generate a sample of availability points and extract covariates for the used and available locations. 
 
-All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019). 
 
 ```{r}
 # prep data and generate availability sample
@@ -117,21 +118,32 @@ data_rsf_map <- sealfishmap +
 data_rsf_map
 ```
 
-We can see that the availability sample is generated within the minimum convex polygon of the used samples.
+We can see that the availability sample is generated within the minimum convex polygon of the used samples. *MAM: if you are using the fish as a rater in all analyses, I would move that up in the set-up section.*
 ```{r}
 # rasterize and extract prey diversity covariate
 fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
+```
 
+Next, we will fit the model. *MAM: explain the arguments of fit_rsf, this part is pretty key.*
+
+```{r}
 # fit rsf (a binomial logistic regression)
 rsf1 <- data_rsf %>%
   amt::fit_rsf(case_ ~ preydiv, model = TRUE)
 
+```
+
+Let us view the summary.
+
+```{r}
 # see model summary
 summary(rsf1)
 ```
+
+*MAM: interpret the results. E.g. what's the relationship with the prediv, should one interpret the intercept, etc.*
 
 ## SSF
 Next we will fit our two SSFs. The workflow is similar to that of the RSF.
@@ -553,7 +565,7 @@ ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 ## HMM
-Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
+Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`. *MAM: citation*
 ```{r, fig.show='hide'}
 # grab stationary probabilities
 ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
