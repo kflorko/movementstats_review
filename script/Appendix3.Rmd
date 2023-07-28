@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This document contains a coding tutorial that demonstrates how to perform the analyses associated with the case study in "*A comparison of statistical models used to characterize species-habitat associations with movement data*". All analyses link the movement data of a ringed seal in eastern Hudson Bay, Canada, to modeled prey diversity.
 
-# Set-up 
+# Set-up  
 ## Load packages
 
 ```{r, message = FALSE, warning = FALSE}
@@ -44,20 +44,19 @@ library(momentuHMM) # for hidden Markov model
 
 ## Fish data
 
-Next we load in the fish data. This is a subset of the data from Florko et al. (2021).
+Next we load in the fish data, which contains the spatial distribution of prey diversity in *MAM: state year*. This is a subset of the data from Florko et al. (2021). *MAM: also cite dryads*
 ```{r}
 # load fish data
 fish <- read.csv(here("data/preydiv.csv"))
 
 ```
 
-Visualize the fish data.
+Using Visualize the fish data. *MAM: I think here you want to use sf rather than sp, sp is pretty much getting removed. The sf function for spTransform is st_transform I think. I think also that now instead of using CRS, all R functions use another system. That's why you are getting warnings. R now uses EPSG, I think the number you want is 3573 or something like that: https://epsg.io/3573 But please check.*
 ```{r, message = FALSE}
-
-#prepare world data for mapping
-## List of azimuthal equal area - HudsonBay 
+# prepare world data for mapping
 natearth <- ne_countries(scale = "medium",returnclass = "sp")
 natearth <- natearth[which(natearth$continent!="Antarctica"),]
+# projection: Lambert azimuthal equal area - Hudson Bay 
 nat_trans <- spTransform(natearth,CRS("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
 # plot fish map
