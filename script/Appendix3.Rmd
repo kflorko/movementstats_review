@@ -817,6 +817,8 @@ map_ss2
 
 ## HMM
 We will first estimate the stationary state probabilities of each state based on prey diversity. This is easily done using the `momentuHMM` function `stationary()`.
+
+*MAM: is some of this done above? Maybe you could combine? You need to break down and explain (e.g. what's the new fish data, etc. Note that the new fish data could be explained at the top somewhere since you are using it in all predictions.)*
 ```{r}
 # grab estimated stationary state probabilities from our fitted HMM
 x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(preydiv = newfish$preydiv)))
@@ -845,6 +847,7 @@ map_hmm <- ggplot() +
 map_hmm
 ```
 
+*MAM: interpret the results.*
 
 
 # References 
