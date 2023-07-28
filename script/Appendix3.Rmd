@@ -1,5 +1,5 @@
 ---
-title: "Appendix 3"
+title: "A comparison of statistical models used to characterize species-habitat associations with movement data: Appendix 3"
 author: "Katie Florko"
 date: "11/07/2023"
 output: 
@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Overview
 
-This document contains the code tutorial from "*A comparison of statistical models used to characterize species-habitat associations with movement data*". This code tutorial demonstrates the analysis of ringed seal movement in eastern Hudson Bay, Canada.
+This document contains a coding tutorial that demonstrates how to perform the analyses associated with the case study in "*A comparison of statistical models used to characterize species-habitat associations with movement data*". All analyses link the movement data of a ringed seal in eastern Hudson Bay, Canada, to modeled prey diversity.
 
 # Set-up 
 ## Load packages
