@@ -638,11 +638,13 @@ line_hmm
 
 # Prediction maps
 
-Now we will estimate the utilization distribution from each model to demonstrate the inference from each model. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficient with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrate the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). `amt` has functions to estimate the SSUD.
+Now we will estimate the utilization distribution *MAM: and ?? for HMM* from each model to demonstrate how differences in the relationships with a covariate can results in vastly different spatial patterns. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficient with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrate the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). `amt` has functions to estimate the SSUD.
 
 
 ## RSF
+
 We can predict the estimated probability of use from the RSF by hand.
+*MAM: just checking, does amt has a function for this? If yes, please use that instead. You got to explain what you are ding with the scaling and range. Why do you need both? Wouldn't just range do the trick?*
 ```{r}
 # grab model coefficients
 modcoef <- summary(rsf1)$coef
@@ -657,7 +659,7 @@ x <- x / (1 + x)
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 # set the range from zero to one
-newfish$rsf_prediction <-range01(x)
+newfish$rsf_prediction <- range01(x)
 
 # plot
 map_rsf <- ggplot() + 
@@ -672,6 +674,8 @@ map_rsf
 
 ## SSF
 We can use the `amt` functions to estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel. 
+
+*MAM: you need to explain why you are fitting it again*
 
 ```{r}
 # generate availability sample
@@ -692,6 +696,8 @@ m1 <- data_ssf |>
 ```
 
 We will now simulate a track and visually observe it.
+
+*MAM: break it down and explain, e.g. why burn in, etc*
 ```{r}
 # set starting position for the simulation
 start <- make_start((seal %>%
@@ -726,6 +732,8 @@ ssf_track_1
 ```
 
 We can see that it mostly stays within the study area. We will use this track to estimate the SSUD, and visualize the results.
+
+*MAM: but in the paper you say that you use home range because it goes outside. You also need to state above that you are not using the same number of simulations for the tutorial, because it would take too long to run. Add a warning for anything that takes more than 1-2 min. (e.g. this will likely take time to run).*
 ```{r}
 # estimate SSUD
 uds_ssf1 <- tibble(rep = 1:n_steps1, 
@@ -749,6 +757,8 @@ map_ssf1
 
 
 We will follow the same steps to generate a SSUD for the SSF that allows prey diversity to affect the movement kernel.
+
+*MAM: please ask J. Signer about the  tolerance.outside = 1 in the discussion chain on Github. And then explain what it means here, because it's pretty weird. You need to break this down and explain.*
 ```{r}
 # fit SSF2 model
 m2 <- data_ssf |> 
