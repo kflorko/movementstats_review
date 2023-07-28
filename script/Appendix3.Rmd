@@ -71,7 +71,7 @@ fishmap
 
 ## Seal data
 
-Next we load in the seal movement data. This is a subset of the data from Florko et al. (2023).
+Next we load in one movement track from a ringed seal *MAM: tagged in year, etc (no need to be exhaustive butgive a sense to the user what they are dealing with)*. This is a subset of the data from Florko et al. (2023). *MAM: if data on dryad, also cite.*
 ```{r, message = FALSE}
 # load seal data
 seal <- read.csv(here("data/seal_track_m.csv")) 
@@ -85,8 +85,7 @@ seal <- seal %>%
 
 Visualize the seal data on top of the fish data.
 ```{r}
-
-# plot p
+# plot seal and fish data together
 sealfishmap <- fishmap + 
   geom_point(data=seal, aes(x=lon, y=lat), alpha = 0.6, color = "#FCEEAE") + 
   geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") 
