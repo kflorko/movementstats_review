@@ -289,7 +289,7 @@ hmmstate_plot
 
 Plot a histogram of step lengths for each state. In order to do this, we need to transform the movement data to UTM and refit our HMM in order to get step length in a meaningful unit (i.e., kilometers).
 
-*MAM: see comment above re km. Also, this needs to be broken down and explained. You need to talk about what you are doing, the arguments of the main functions, and interpret the results. As for main text, please change the name of the 3 behaviours. Also, it may be more straightforward if for some of these figures you just use the functions from momentuHMM, rather than you own plot functions (less code). I don't think it matters is the colours don't match the paper, and you can refer the reader to another script with the details to recreate your exact figures.*
+*MAM: see comment above re km. Also, this needs to be broken down and explained. You need to talk about what you are doing, the arguments of the main functions, and interpret the results. As for main text, please change the name of the 3 behaviours. Also, it may be more straightforward if for some of these figures you just use the functions from momentuHMM, rather than you own plot functions (less code). I don't think it matters if the colours don't match the paper, and you can refer the reader to another script with the details to recreate your exact figures.*
 ```{r, message = FALSE}
 ## prep data in lat/lon and refit model (so step length is in kilometers)
 data_hmm <- seal %>%
@@ -435,8 +435,8 @@ hmm_angledist_plot
 ```
 
 
-# Prediction line plots
-Plotting a model's estimated relationship between the resource covariate and probability of selection can be useful for general ecological inference. We will calculate the log of the relative selection strength (log-RSS) for each selection function model. The log-RSS is a measure how how likely a step is to end in a proposed location (x1) to one a single reference location (x2), where zero indicates no preference, >1 indicates selection, and <1 indicates avoidance (Avgar et al. 2017, Fieberg et al. 2021). 
+# Plots of predicted relationships with the covariate
+Plotting a model's estimated relationship between the resource covariate and probability of selection can be useful for general ecological inference. We will calculate the log of the relative selection strength (log-RSS) for each selection function model. The log-RSS is a measure of how likely a step is to end in a proposed location (x1) to one a single reference location (x2), where zero indicates no preference, >1 indicates selection, and <1 indicates avoidance (Avgar et al. 2017, Fieberg et al. 2021). *MAM: can you rephrase this a bit, it's slightly confusing. Especially to "to one a single refernece locaytion". Also it's written in terms of SSF, but how do you interpret in the RSFs?*
 
 First, we prepare a dataframe to predict on.
 ```{r}
@@ -450,8 +450,10 @@ newfish <- fish_raster %>%
 
 ## RSF
 Since the RSF does not incorporate movement, we will calculate the log-RSS of the movement-free habitat selection kernel. This is easily done using `log_rss()` from `amt`.
-```{r}
 
+*MAM: is that something people do for RSF? You also need to reak this down and explain.*
+
+```{r}
 # make a base dataframe to create x1 and x2 from
 base <- newfish %>% 
   mutate(log_sl = log(45),
@@ -487,9 +489,10 @@ line_rsf
 ```
 
 
-
 ## SSF
 We can also calculate the log-RSS of a SSF following the same workflow as for the RSF. Since log_rss() passes to predict(), it is important that the fit SSF includes `model = TRUE`. 
+
+*MAM: you have to break this down and explain*
 ```{r}
 ## log-RSS prediction for ssf1
 
@@ -518,6 +521,9 @@ line_ssf1
 ```
 
 For ssf2 (the model where prey diversity interacts with movement), we will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. 
+
+*MAM: break this down and explain and interpret the results. I'm also a bit confused why here the CI don't go to 0 at 0 and they do in the others. Its better if they don't go to 0 (it's a bit weird that it does), you are sure you are doing thinsg right above?*
+
 ```{r}
 ## log-RSS prediction for ssf2
 
@@ -566,7 +572,8 @@ line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
 line_ssf2
 ```
 
-Typically these models would be interpreted independently. But it's worth noting that while the effects are minimal and the confidence intervals overlap, when comparing ssf1 and ssf2, the ssf2 provides more information about the animal's relationship with prey diversity.
+Typically these models would be interpreted independently. But it's worth noting that while the effects are minimal and the confidence intervals overlap, when comparing ssf1 and ssf2, ssf2 provides more information about the animal's relationship with prey diversity.
+
 ```{r, message = 'false'}
 # Plot
 ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
@@ -593,6 +600,8 @@ ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
 
 
 ## HMM
+
+*MAM: something about how this is fundamentally different from the RSF/SSF predictions.*
 Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
 ```{r, fig.show='hide'}
 # grab stationary probabilities
@@ -625,7 +634,7 @@ line_hmm
 
 ```
 
-
+*MAM: why are you hiding the plot? Please show and interpret the results.*
 
 # Prediction maps
 
