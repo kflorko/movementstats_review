@@ -40,11 +40,13 @@ library(viridis)
 library(amt) # for selection functions
 library(momentuHMM) # for hidden Markov model
 
+# plotting
+library(ggplot2)
 ```
 
 ## Fish data
 
-Next we load in the fish data, which contains the spatial distribution of prey diversity in *MAM: state year*. This is a subset of the data from Florko et al. (2021). *MAM: also cite dryads*
+Next we load in the fish data, which contains the spatial distribution of prey diversity in 2012. This is a subset of the data from Florko et al. (2021a, 2021b).
 ```{r}
 # load fish data
 fish <- read.csv(here("data/preydiv.csv"))
@@ -71,7 +73,7 @@ fishmap
 
 ## Seal data
 
-Next we load in one movement track from a ringed seal *MAM: tagged in year, etc (no need to be exhaustive butgive a sense to the user what they are dealing with)*. This is a subset of the data from Florko et al. (2023). *MAM: if data on dryad, also cite.*
+Next we load in one movement track from a ringed seal equipped with an ARGOS satellite telemetry transmitter over the course of over four months in the winter of 2012-2013. This is a subset of the data from Florko et al. (2023a).
 ```{r, message = FALSE}
 # load seal data
 seal <- read.csv(here("data/seal_track_m.csv")) 
@@ -97,7 +99,7 @@ sealfishmap
 # Fit models
 We will fit four models: 1) a resource selection function (RSF), 2) a step selection function (SSF) without habitat covariates in the movement kernel, 3) a SSF with a habitat covariate modifying the movement kernel, and 4) a hidden Markov model (HMM). All four of these models will include prey diversity as a covariate. 
 
-All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019), while the HMM will use the functions from the `momentuHMM` package. *MAM: citation*. 
+All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019), while the HMM will use the functions from the `momentuHMM` package (McClintok and Michelot 2018). 
 
 ## RSF
 The RSF is the simplest of the four models. Fitting an RSF to movement data first requires us to generate a sample of availability points and extract covariates for the used and available locations. 
@@ -266,6 +268,12 @@ hmm2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             delta0 = Par0_hmm1$delta, 
             beta0 = Par0_hmm1$beta,
             formula=formula)
+
+trProbs <- getTrProbs(hmm2, getCI=TRUE, covIndex = 1)
+print(hmm2)
+
+# see parameters
+hmm2$mle$step
 ```
 
 We plot the decoded states (estimated behaviours).
@@ -860,6 +868,9 @@ Fieberg, J., Signer, J., Smith, B., & Avgar, T. (2021). A ‘How to’guide for 
 
 <div style="text-indent: -40px; padding-left: 40px;">
 Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. (2021). Predicting how climate change threatens the prey base of Arctic marine predators. Ecology Letters, 24: 2563-2575. https://doi.org/10.1111/ele.13866 </div>
+
+<div style="text-indent: -40px; padding-left: 40px;">
+Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. (2021b), Predicting how climate change threatens the prey base of Arctic marine predators, Dryad, Dataset, https://doi.org/10.5061/dryad.x69p8czjs </div>
 
 
 <div style="text-indent: -40px; padding-left: 40px;">
