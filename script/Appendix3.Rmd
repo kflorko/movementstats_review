@@ -273,7 +273,14 @@ trProbs <- getTrProbs(hmm2, getCI=TRUE, covIndex = 1)
 print(hmm2)
 
 # see parameters
-hmm2$mle$step
+hmm2$mle$beta
+hmm2$mle$gamma
+hmm2$CIreal$gamma
+hmm2$CIreal$delta
+hmm2$CIbeta$delta
+
+hmm2$mod$estimate
+hmm2$mod
 ```
 
 We plot the decoded states (estimated behaviours).
@@ -658,10 +665,7 @@ We can predict the estimated probability of use from the RSF by hand.
 modcoef <- summary(rsf1)$coef
 
 # prediction for each cell
-x <- exp(modcoef[1] + (modcoef[2] * newfish$preydiv))
-
-# scale the data
-x <- x / (1 + x)
+x <- exp(modcoef[2] * newfish$preydiv)
 
 # range fn
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
@@ -672,7 +676,7 @@ newfish$rsf_prediction <- range01(x)
 # plot
 map_rsf <- ggplot() + 
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "RSF prediction", limits = c(0, 0.3)) +
+  scale_fill_viridis(option = "mako", name = "RSF prediction",limits = c(0,0.14)) +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme_void()
@@ -866,8 +870,10 @@ map_hmm
 <div style="text-indent: -40px; padding-left: 40px;">
 Fieberg, J., Signer, J., Smith, B., & Avgar, T. (2021). A ‘How to’guide for interpreting parameters in habitat‐selection analyses. Journal of Animal Ecology, 90(5), 1027-1043. https://doi.org/10.1111/1365-2656.13441 </div>
 
+
 <div style="text-indent: -40px; padding-left: 40px;">
 Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. (2021). Predicting how climate change threatens the prey base of Arctic marine predators. Ecology Letters, 24: 2563-2575. https://doi.org/10.1111/ele.13866 </div>
+
 
 <div style="text-indent: -40px; padding-left: 40px;">
 Florko, K.R.N., Tai, T.C., Cheung, W.W.L., Sumaila, U.R., Ferguson, S.H., Yurkowski, D.J., Auger-Méthé, M. (2021b), Predicting how climate change threatens the prey base of Arctic marine predators, Dryad, Dataset, https://doi.org/10.5061/dryad.x69p8czjs </div>
@@ -887,6 +893,7 @@ Signer, J., Fieberg, J., & Avgar, T. (2017). Estimating utilization distribution
 
 <div style="text-indent: -40px; padding-left: 40px;">
 Signer, J., J. Fieberg, and T. Avgar. (2019). Animal movement tools (amt): R package for managing tracking data and conducting habitat selection analyses. Ecology and Evolution, 9:880–890.  https://doi.org/10.1002/ece3.4823 </div>
+
 
 <div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
 
