@@ -236,70 +236,108 @@ Finally, we will fit the HMM using momentuHMM (McClintock and Michelot, 2018). I
 
 *MAM: you need to break this down and explain the steps. I would include the two-state HMM that you fitted and show how you decided that it should be 3 states. Also, really you'd want to have it in km in the first time. The HMM is mostly dividing the state based on speed, so km would make more sense. This also means that the SSF would make more sense in KM. I would do the KM transformation above (I thought that's what you were doing with you projection, and do all analysis in km).*
 ```{r, message = FALSE}
-# prepare dataset
+## prep data in lat/lon and refit model (so step length is in kilometers)
 data_hmm <- seal %>%
   make_track(lon, lat, date) %>%
   extract_covariates(fish_raster) %>%
-  mutate(ID = 1,
+    mutate(ID = 1,
          x = x_,
          y = y_,
          date = t_) %>%
   dplyr::select(ID, x, y, date, preydiv) %>%
-  as.data.frame()
+  as.data.frame() %>%
+  st_as_sf(coords = c("x", "y")) %>%
+  st_set_crs("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0") %>%
+  st_transform("+proj=longlat +datum=WGS84") %>%
+  mutate(long = unlist(map(geometry,1)),
+          lat = unlist(map(geometry,2))) %>%
+  st_drop_geometry()
 
-# convert into momentuHMM format
-data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("x", "y"), 
-                                 type = "UTM",
-                                 covNames = c("preydiv"))
+# do momentuhmm which calculates step length in KM
+data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type = "LL", covNames = c("preydiv"))
 
-# define initial parameters
-nbStates <- 3 # number of states
+# first let us try fitting a two-state HMM
+# define parameters
+nbStates <- 2 # number of states
 stepDist <- "gamma" # step distribution
 angleDist <- "vm" # turning angle distribution
 
-mu0 <- c(5000, 18000, 38000) # mean step length for each state
-sigma0 <- c(5000,  10000, 10000) # sd step length for each state
-stepPar0 <- c(mu0, sigma0) 
-kappa0 <- c(0.35, 0.55, 0.5) # turning angle for each state
+mu0 <- c(5, 38) # mean step length for each state
+sigma0 <- c(3, 8) # sd step length for each state
+stepPar0 <- c(mu0, sigma0)
+kappa0 <- c(0.35, 0.5)  # turning angle for each state
 
 formula = ~ preydiv # identify covariates
 
-# fit basic 3-state hmm
+# fit HMM (with step in km)
 set.seed(2023)
-hmm1 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             dist=list(step=stepDist,angle=angleDist),
             Par0=list(step=stepPar0,angle=kappa0))
 
 # retrieve parameters to refine model
-Par0_hmm1 <- momentuHMM::getPar0(hmm1, formula=formula)
+Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
-# fit a refined hmm with parameters from hhm1
+# fit a refined HMM with parameters from hmm1_km
 set.seed(2023)
-hmm2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm1$Par,
-            delta0 = Par0_hmm1$delta, 
-            beta0 = Par0_hmm1$beta,
+            Par0=Par0_hmm1_km$Par,
+            delta0 = Par0_hmm1_km$delta, 
+            beta0 = Par0_hmm1_km$beta,
+            formula=formula)
+plot(hmm2_km)
+# we can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We will try fitting a three-state HMM to see if this better captures those movements.
+
+
+# let us try fitting a three-state HMM
+
+# define parameters
+nbStates <- 3 # number of states
+stepDist <- "gamma" # step distribution
+angleDist <- "vm" # turning angle distribution
+
+mu0 <- c(5, 12, 38) # mean step length for each state
+sigma0 <- c(3, 5, 8) # sd step length for each state
+stepPar0 <- c(mu0, sigma0)
+kappa0 <- c(0.35, 0.55, 0.5)  # turning angle for each state
+
+formula = ~ preydiv # identify covariates
+
+# fit HMM (with step in km)
+set.seed(2023)
+hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=list(step=stepPar0,angle=kappa0))
+
+# retrieve parameters to refine model
+Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
+
+# fit a refined HMM with parameters from hmm1_km
+set.seed(2023)
+hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=Par0_hmm3_km$Par,
+            delta0 = Par0_hmm3_km$delta, 
+            beta0 = Par0_hmm3_km$beta,
             formula=formula)
 
-trProbs <- getTrProbs(hmm2, getCI=TRUE, covIndex = 1)
-print(hmm2)
+plot(hmm4_km)
+# Much better! We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states.
 
-# see parameters
-hmm2$mle$beta
-hmm2$mle$gamma
-hmm2$CIreal$gamma
-hmm2$CIreal$delta
-hmm2$CIbeta$delta
+# add the state estimate from the HMM
+data_hmm$state <- as.factor(momentuHMM::viterbi(hmm4_km))
 
-hmm2$mod$estimate
-hmm2$mod
+
+# view the regression coeffients for the transition probabilities
+print(hmm2_km)
+
 ```
 
 We plot the decoded states (estimated behaviours).
 ```{r, message = FALSE}
 # plot decoded states
-data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2))
+data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2_km))
 hmmstate_plot <- ggplot() + 
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
   geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
@@ -633,7 +671,7 @@ ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
 Finally, we grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
 ```{r, fig.show='hide'}
 # grab stationary probabilities
-ps <- momentuHMM::plotStationary(hmm2, plotCI= TRUE, return = TRUE)
+ps <- momentuHMM::plotStationary(hmm2_km, plotCI= TRUE, return = TRUE)
 state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
 state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
 state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
@@ -846,7 +884,7 @@ We will first estimate the stationary state probabilities of each state based on
 *MAM: is some of this done above? Maybe you could combine? You need to break down and explain (e.g. what's the new fish data, etc. Note that the new fish data could be explained at the top somewhere since you are using it in all predictions.)*
 ```{r}
 # grab estimated stationary state probabilities from our fitted HMM
-x <- as.data.frame(momentuHMM::stationary(hmm2, data.frame(preydiv = newfish$preydiv)))
+x <- as.data.frame(momentuHMM::stationary(hmm2_km, data.frame(preydiv = newfish$preydiv)))
 newfish$hmm_state1 <- x$state.1
 newfish$hmm_state2 <- x$state.2
 newfish$hmm_state3 <- x$state.3 
