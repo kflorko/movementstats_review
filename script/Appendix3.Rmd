@@ -132,7 +132,7 @@ data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
 ```
 
-Next, we will fit the model. *MAM: explain the arguments of fit_rsf, this part is pretty key.*
+Next, we will fit the model. The response, `case_`, is used or available location, and `preydiv` is the covariate for prey diversity.
 
 ```{r}
 # fit rsf (a binomial logistic regression)
@@ -141,29 +141,25 @@ rsf1 <- data_rsf %>%
 
 ```
 
-Let us view the summary.
+View the summary.
 
 ```{r}
 # see model summary
 summary(rsf1)
 ```
 
-*MAM: interpret the results. E.g. what's the relationship with the prediv, should one interpret the intercept, etc.*
-
+We see that prey diversity is a significant positive covariate. We do not interpret the intercept, since it is not ecologically meaningful in a RSF. See Fieberg et al. (2021) for a detailed discussion on how to interpret parameters. 
+ 
 ## SSF
-Next we will fit our two SSFs. The workflow is similar to that of the RSF.
+Next we will fit our two SSFs. The workflow is similar to that of the RSF, however, the availability sample is generated differently. We transform the seal locations into a track format, then convert the track data into step format (i.e., with a start and an end), and then generate the availability sample.
 
-*MAM: explain the arrange(case_) and how that's the key difference (I think from the RSF). Also if you have warning message, try to fix them as much as possible, or explain them in the tutorial, because the users will have the warning messages and won't understand why if you just make RMarkdown not print them.*
-
-
-```{r, message = FALSE}
+```{r}
 # prep data and generate availability sample
 set.seed(2023)
 data_ssf <- seal %>%
   make_track(lon, lat, date) %>% #  convert data to track format
   steps() %>% # convert track data to step format (i.e., with a start and an end)
-  random_steps() %>% # generate availability sample 
-  arrange(case_)
+  random_steps()  # generate availability sample 
 ```
 
 It always helps to visualized the sample created.
@@ -179,9 +175,7 @@ data_ssf_map
 
 We can see that the availability sample is generated at each step and is not restricted to the minimum convex polygon.
 
-*MAM: in text you said that you sampled more and than just kept those in water, are you skipping that step here?*
-
-We now extract covariates for the used and available locations.
+We now extract prey diversity values for the used and available locations.
 
 ```{r, message = FALSE}
 # extract prey diversity covariate
@@ -190,7 +184,8 @@ data_ssf <- data_ssf %>%
 
 ```
 
-*MAM: what are you doing here. I feel that's pretty key to understanding the movement kernel, no?*
+
+We will transform both the step length and turning angle using log and cosine transformations, respectively.
 
 ```{r}
 # transform movement covariates
@@ -199,7 +194,9 @@ data_ssf <- data_ssf %>%
          log_sl = log(sl_))
 ```
 
-*MAM: you need to explain the arguments of the fit_clogit, and explain the strata, and talk about the movement kernel. Also FYI: I think the observations with no fish data are deleted (see "2 observations deleted due to missingness"). You might want to remove these (see comment above) and/or talk about it.*
+Next, we will fit the models. The response, `case_`, is used or available location, and `preydiv` is the covariate for prey diversity. `log_sl` is the log transformation of step length, and `cos_ta` is the cosine transformation of turning angle. `strata(step_id_)` specifies that the this is a *conditional* logistic regression that groups data by step identification number.
+
+We are fitting two SSFs, one without a movement-related covariate (called ssf1), and one with a movement-related covariate (called ssf2). 
 
 ```{r}
 # fit ssfs
@@ -211,12 +208,28 @@ ssf1 <- data_ssf %>%
 ssf2 <- data_ssf %>%
   fit_clogit(case_ ~ preydiv*log_sl + cos_ta + strata(step_id_), model = TRUE)
 
-# see model summaries
+```
+
+First we will interpret ssf1. 
+```{r}
+# see model summary
 summary(ssf1)
+```
+
+This model estimates the coefficients (coef) as well as the exponent of the coefficient (exp(coef)). The coefficients are as in our regular logistic regression (the RSF), and the exp(coef) quantifies the relative intensity of use of two locations that differ by 1 unit of prey diversity but are otherwise the same. The model suggests our seal would be 2.6 times more likely to choose a location with 1 unit higher prey diversity (see Fieberg et al. 2021). However, this is not significant (p = 0.888), and we see that the scale of prey diversity is much smaller (range = 0.5-0.75), and thus an increase in of 2.6 times per 1 unit prey diversity is not a meaningful increase.
+
+We don't interpret the values of log_sl or cos_ta, since we don't expect those to affect occurrence since the availability sample is generated using the step length and turning angle from the observed track.
+
+We also see that we get a warning "2 observations deleted due to missingness", due to two of our available locations being found on land, where we do not have fish values. This could be mitigated by generating more than 10 (i.e., 15) available locations per used location, omitting the samples without prey diversity values, and then randomly selecting 10 available locations per used location of those that have values for prey diversity.
+
+
+Next we will interpret ssf2. 
+```{r}
+# see model summary
 summary(ssf2)
 ```
 
-*MAM: Interpret the results, similar to the RSF comment. But in addition, here you have much more results, you want to explain how you interpret the coef and exp(coef), etc*
+Similar to ssf1, we don't see any significant relationships. Note that we also included a term for preydiv*log_sl. Since we have this interaction, preydiv and log_sl can not be interpreted indepently, thus we interpret the interaction. The interaction is not signficant, so this model does not suggest that prey diversity affects the movement speed of our ringed seal.
 
 ## HMM
 Finally, we will fit the HMM using momentuHMM (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. 
