@@ -20,7 +20,6 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
 ```
 
 # Overview
@@ -51,17 +50,20 @@ library(momentuHMM) # for hidden Markov model
 library(ggplot2)
 ```
 
-## Fish data
+## Prey diversity data
 
 Next we load in the fish data, which contains the spatial distribution of prey diversity in 2012. This is a subset of the data from Florko et al. (2021a, 2021b).
 ```{r load fish}
-# load fish data
+# load prey diversity data
 fish <- read.csv(here("data/preydiv.csv"))
 
+# rasterize prey diversity data
+fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 ```
 
-Using Visualize the fish data. *MAM: I think here you want to use sf rather than sp, sp is pretty much getting removed. The sf function for spTransform is st_transform I think. I think also that now instead of using CRS, all R functions use another system. That's why you are getting warnings. R now uses EPSG, I think the number you want is 3573 or something like that: https://epsg.io/3573 But please check.*
+Visualize the fish data. *MAM: I think here you want to use sf rather than sp, sp is pretty much getting removed. The sf function for spTransform is st_transform I think. I think also that now instead of using CRS, all R functions use another system. That's why you are getting warnings. R now uses EPSG, I think the number you want is 3573 or something like that: https://epsg.io/3573 But please check.*
 ```{r plot fish, message = FALSE}
+
 # prepare world data for mapping
 natearth <- ne_countries(scale = "medium",returnclass = "sp")
 natearth <- natearth[which(natearth$continent!="Antarctica"),]
@@ -100,18 +102,17 @@ sealfishmap <- fishmap +
   geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") 
 
 sealfishmap
-
 ```
 
 # Fit models
+
 We will fit four models: 1) a resource selection function (RSF), 2) a step selection function (SSF) without habitat covariates in the movement kernel, 3) a SSF with a habitat covariate modifying the movement kernel, and 4) a hidden Markov model (HMM). All four of these models will include prey diversity as a covariate. 
 
 All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019), while the HMM will use the functions from the `momentuHMM` package (McClintok and Michelot 2018). 
 
 ## RSF
+
 The RSF is the simplest of the four models. Fitting an RSF to movement data first requires us to generate a sample of availability points and extract covariates for the used and available locations. 
-
-
 ```{r rsf data}
 # prep data and generate availability sample
 set.seed(2023)
@@ -127,20 +128,16 @@ data_rsf_map <- sealfishmap +
 data_rsf_map
 ```
 
-We can see that the availability sample is generated within the minimum convex polygon of the used samples. *MAM: if you are using the fish as a rater in all analyses, I would move that up in the set-up section. Also, why are you using WSG$ here, but LAEA above? Is there a mismatch in your projections?*
+We can see that the availability sample is generated within the minimum convex polygon of the used samples. 
 
-We now extract covariates for the used and available locations.
-
+We now extract covariates (prey diversity) for the used and available locations.
 ```{r rsf extract}
-# rasterize and extract prey diversity covariate
-fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
 ```
 
-Next, we will fit the model. The response, `case_`, is used or available location, and `preydiv` is the covariate for prey diversity.
-
+Next, we will fit the model. The response, `case_`, is the used or available location, and `preydiv` is the covariate for prey diversity.
 ```{r rsf fit}
 # fit rsf (a binomial logistic regression)
 rsf1 <- data_rsf %>%
@@ -149,7 +146,6 @@ rsf1 <- data_rsf %>%
 ```
 
 View the summary.
-
 ```{r rsf summary}
 # see model summary
 summary(rsf1)
@@ -158,6 +154,7 @@ summary(rsf1)
 We see that prey diversity is a significant positive covariate. We do not interpret the intercept, since it is not ecologically meaningful in a RSF. See Fieberg et al. (2021) for a detailed discussion on how to interpret parameters. 
  
 ## SSF
+
 Next we will fit our two SSFs. The workflow is similar to that of the RSF, however, the availability sample is generated differently. We transform the seal locations into a track format, then convert the track data into step format (i.e., with a start and an end), and then generate the availability sample.
 
 ```{r ssf data}
@@ -169,8 +166,7 @@ data_ssf <- seal %>%
   random_steps()  # generate availability sample 
 ```
 
-It always helps to visualized the sample created.
-
+Visualize the sample created.
 ```{r ssf plot}
 # plot used vs available locations on-top of prey diversity
 data_ssf_map <- sealfishmap +
@@ -183,7 +179,6 @@ data_ssf_map
 We can see that the availability sample is generated at each step and is not restricted to the minimum convex polygon.
 
 We now extract prey diversity values for the used and available locations.
-
 ```{r ssf extract, message = FALSE}
 # extract prey diversity covariate
 data_ssf <- data_ssf %>%
@@ -193,7 +188,6 @@ data_ssf <- data_ssf %>%
 
 
 We will transform both the step length and turning angle using log and cosine transformations, respectively.
-
 ```{r ssf dataprep}
 # transform movement covariates
 data_ssf <- data_ssf %>%
@@ -203,7 +197,7 @@ data_ssf <- data_ssf %>%
 
 Next, we will fit the models. The response, `case_`, is used or available location, and `preydiv` is the covariate for prey diversity. `log_sl` is the log transformation of step length, and `cos_ta` is the cosine transformation of turning angle. `strata(step_id_)` specifies that the this is a *conditional* logistic regression that groups data by step identification number.
 
-We are fitting two SSFs, one without a movement-related covariate (called ssf1), and one with a movement-related covariate (called ssf2). 
+We are fitting two SSFs: one without a movement-related covariate (called ssf1), and one with a movement-related covariate (called ssf2). 
 
 ```{r ssf fit}
 # fit ssfs
@@ -231,6 +225,7 @@ We also see that we get a warning "2 observations deleted due to missingness", d
 
 
 Next we will interpret ssf2. 
+
 ```{r ssf2 summary}
 # see model summary
 summary(ssf2)
@@ -238,8 +233,9 @@ summary(ssf2)
 
 Similar to ssf1, we don't see any significant relationships. Note that we also included a term for preydiv*log_sl. Since we have this interaction, preydiv and log_sl can not be interpreted indepently, thus we interpret the interaction. The interaction is not signficant, so this model does not suggest that prey diversity affects the movement speed of our ringed seal.
 
-## HMM
-Finally, we will fit the HMM using momentuHMM (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. 
+## HMM - Allowing prey diversity to affect the state transition probability
+
+Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the emission probability. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
 
 *MAM: you need to break this down and explain the steps. I would include the two-state HMM that you fitted and show how you decided that it should be 3 states. Also, really you'd want to have it in km in the first time. The HMM is mostly dividing the state based on speed, so km would make more sense. This also means that the SSF would make more sense in KM. I would do the KM transformation above (I thought that's what you were doing with you projection, and do all analysis in km).*
 
@@ -269,6 +265,7 @@ data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type =
 nbStates <- 2 # number of states
 stepDist <- "gamma" # step distribution
 angleDist <- "vm" # turning angle distribution
+dist <- list(step=stepDist,angle=angleDist)
 
 mu0 <- c(5, 38) # mean step length for each state
 sigma0 <- c(3, 8) # sd step length for each state
@@ -280,7 +277,7 @@ formula = ~ preydiv # identify covariates
 # fit HMM (with step in km)
 set.seed(2023)
 hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
-            dist=list(step=stepDist,angle=angleDist),
+            dist=dist,
             Par0=list(step=stepPar0,angle=kappa0))
 
 # retrieve parameters to refine model
@@ -508,8 +505,24 @@ hmm_angledist_plot <- ggplot() +
 hmm_angledist_plot
 ```
 
+## HMM - Allowing prey diversity to affect the emission probability
+
+Here we allow prey diversity to influence the step length in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
+
+```{r fit hmm emission probability}
+
+# state transition probability formula
+distFormula = ~ state1(preydiv) + state2(preydiv) + state3(preydiv)
+
+# RON HELP PLEASE! Hopefully we can use most of the above HMM formatting to just incorporate this formula
+
+```
+
+
+
 
 # Plots of predicted relationships with the covariate
+
 Here we are plotting a model's estimated relationship between the resource covariate and probability of selection can be useful for general ecological inference. We will calculate the log of the relative selection strength (log-RSS) for each selection function model. The log-RSS is a measure of how likely a location (for the RSF) or step (for SSFs) is to end in a proposed location (x1) to a single reference location (x2, the mean prey diversity), where zero indicates no preference, >1 indicates selection, and <1 indicates avoidance (Avgar et al. 2017, Fieberg et al. 2021). 
 
 First, we prepare a dataframe to predict on.
@@ -523,6 +536,7 @@ newfish <- fish_raster %>%
 
 
 ## RSF
+
 Since the RSF does not incorporate movement, we will calculate the log-RSS of the movement-free habitat selection kernel. This is easily done using `log_rss()` from `amt`.
 
 First, we make a base dataframe to create x1 and x2 from. The values of `log_sl` and `cos_ta` do not matter, but we need populated columns in order for the `log_rss` function to work.
@@ -573,6 +587,7 @@ We see a positive relationship between prey diversity and log-RSS, which suggest
 
 
 ## SSF
+
 We can also calculate the log-RSS for our SSFs following the same workflow as for the RSF. Since log_rss() passes to predict(), it is important that the fit SSF includes `model = TRUE`. 
 
 First, we will calculate log-RSS for ssf1.
@@ -735,6 +750,7 @@ line_hmm
 
 Here we can see that each state has a different relationship between the stationary state probability and prey diversity. The slow movement state has a positive relationship between stationary state probability and prey diversity, the moderate movement state has a negative relationship with prey diversity, and the fast movement state does not appear to have a directional relationship with prey diversity.
 
+
 # Prediction maps
 
 Now we will estimate the utilization distributions from each model to demonstrate how differences in the relationships with a covariate can results in vastly different spatial patterns. The utilization distribution is defined as the two-dimensional relative frequency distribution of space use of an animal (Van Winkle 1975). This is a simple calculation for the RSF, where we multiply the model coefficient with the resource (prey diversity), exponentiate (since it is a logistic regression), and normalize the estimate. The calculations are more complex for the SSFs since they are conditional models that integrate the movement process. Thus, for the SSFs we calculate the steady-state utilization distribution (SSUD), which is the long-term expectation of the space-use distribution across the landscape (Signer et al. 2017). `amt` has functions to estimate the SSUD.
@@ -774,9 +790,11 @@ map_rsf
 ```
 
 ## SSF
+
 We can use the `amt` functions to estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel.
 
 *MAM: you need to explain why you are fitting it again*
+*MAM: add that you can load them in because it takes time*
 
 ```{r ssf1 refit}
 # generate availability sample
@@ -787,11 +805,11 @@ data_ssf <- seal %>%
   steps() %>%
   random_steps() %>% 
   arrange(case_) %>%
-  amt::extract_covariates(fish_raster, where = "both") 
+  amt::extract_covariates(fish_raster, where = "both")
 
 # fit SSF1 model
 m1 <- data_ssf |> 
-  fit_clogit(case_ ~ preydiv_end +  cos(ta_) + log(sl_) + 
+  fit_clogit(case_ ~ preydiv_end +  log(sl_) + cos(ta_) + 
                strata(step_id_))
 
 ### This
@@ -860,20 +878,12 @@ We will follow the same steps to generate a SSUD for the SSF that allows prey di
 *MAM: please ask J. Signer about the  tolerance.outside = 1 in the discussion chain on Github. And then explain what it means here, because it's pretty weird. You need to break this down and explain.*
 ```{r ssf2 refit}
 m2 <- data_ssf |> 
-  fit_clogit(case_ ~ preydiv_end*log(sl_) + cos(ta_) + 
+  fit_clogit(case_ ~ preydiv_end * log(sl_) + cos(ta_) + 
                strata(step_id_))
 
-# set starting position for the simulation
-start <- make_start((seal %>%
-                       mutate(date = as.POSIXct(date)) %>%
-                       make_track(lon, lat, date))[1,]) 
-
-# set constants
-n_steps = 1e4 # number of steps
-n_steps1 = n_steps + 1 # number of steps + 1
-burnin <- n_steps/50 # number of steps to remove for the burn-in
 
 # generate redistribution kernel
+set.seed(2023)
 k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
                             stochastic = TRUE,
                             tolerance.outside = 1,
@@ -918,23 +928,29 @@ map_ssf2
 ```
 
 ## HMM
-We will first estimate the stationary state probabilities of each state based on prey diversity. This is easily done using the `momentuHMM` function `stationary()`.
 
-*MAM: is some of this done above? Maybe you could combine? You need to break down and explain (e.g. what's the new fish data, etc. Note that the new fish data could be explained at the top somewhere since you are using it in all predictions.)*
-```{r hmm prediction plot}
+We will first estimate the stationary state probabilities of each state based on prey diversity. This is easily done using the `momentuHMM` function `stationary()`. This function predicts the probability of being in each state given a covariate (prey diversity).
+```{r hmm prediction for map}
 # grab estimated stationary state probabilities from our fitted HMM
-x <- as.data.frame(momentuHMM::stationary(hmm4_km, data.frame(preydiv = newfish$preydiv)))
+x <- as.data.frame(momentuHMM::stationary(hmm4_km, 
+                   data.frame(preydiv = newfish$preydiv)))
 newfish$hmm_state1 <- x$state.1
 newfish$hmm_state2 <- x$state.2
-newfish$hmm_state3 <- x$state.3 
+newfish$hmm_state3 <- x$state.3
+```
 
+Format the data for plotting.
+```{r hmm prediction data format}
 # prepare data
 newfish_long <- newfish %>%
   tidyr::pivot_longer(cols = hmm_state1:hmm_state3, 
                names_to = "model", values_to = "prediction") %>%
   mutate(dplyr::across(model, factor, levels=
                c("hmm_state1", "hmm_state2", "hmm_state3")))
+```
 
+Visualize the results.
+```{r hmm prediction plot}
 # plot
 map_hmm <- ggplot() + 
   geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
@@ -947,12 +963,10 @@ map_hmm <- ggplot() +
                                               'hmm_state3' = "Fast movement"))) +
   theme_void()
 
-
 map_hmm
 ```
 
-*MAM: interpret the results.*
-
+We can see that the slow movement state, which was positively related to prey diversity, showed a similar restricted spatial pattern to the RSF, whereas the moderate movement state, which had a negative relationship with prey diversity, showed the opposite pattern to the RSF prediction map. The fast movement state did not show as much spatial variation, due to its non significant relationship with prey diversity.
 
 # References 
 
