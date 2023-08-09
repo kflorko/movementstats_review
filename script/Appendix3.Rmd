@@ -345,7 +345,7 @@ We plot the decoded states (estimated behaviours).
 ```{r hmm decoded states, message = FALSE}
 # plot decoded states
 data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2_km))
-hmmstate_plot <- ggplot() + 
+hmmstate_plot <- ggplot() +
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
   geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
   geom_point(data=data_hmm, aes(x=x, y=y, color = state, shape = state), size=2, alpha = 0.8) + 
@@ -355,8 +355,8 @@ hmmstate_plot <- ggplot() +
   scale_shape_manual(values = c(15, 16, 17), 
                      labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling"), 
                      name = "HMM state") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F)
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") +
+  coord_sf(crs = 4326, xlim = range(data_hmm$x), ylim = range(data_hmm$y))
 hmmstate_plot
 ```
 
