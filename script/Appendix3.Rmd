@@ -39,6 +39,7 @@ library(lubridate)
 library(rnaturalearth)
 library(rgdal)
 library(terra)
+library(tidyterra)
 library(sf)
 library(viridis)
 
@@ -58,24 +59,25 @@ Next we load in the fish data, which contains the spatial distribution of prey d
 fish <- read.csv(here("data/preydiv.csv"))
 
 # rasterize prey diversity data
-fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+# fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+fish_raster <- terra::rast(fish, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
 ```
 
 Visualize the fish data. *MAM: I think here you want to use sf rather than sp, sp is pretty much getting removed. The sf function for spTransform is st_transform I think. I think also that now instead of using CRS, all R functions use another system. That's why you are getting warnings. R now uses EPSG, I think the number you want is 3573 or something like that: https://epsg.io/3573 But please check.*
 ```{r plot fish, message = FALSE}
 
 # prepare world data for mapping
-natearth <- ne_countries(scale = "medium",returnclass = "sp")
+natearth <- ne_countries(scale = "medium",returnclass = "sf")
 natearth <- natearth[which(natearth$continent!="Antarctica"),]
-# projection: Lambert azimuthal equal area - Hudson Bay 
-nat_trans <- spTransform(natearth,CRS("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+# projection: project land to match fish raster 
+nat_trans <- st_transform(natearth, crs(fish_raster))
 
 # plot fish map
 fishmap <- ggplot() + 
-  geom_tile(data = fish, aes(x = lon,y = lat,fill = preydiv)) +
+  tidyterra::geom_spatraster(data = fish_raster) +
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F)
 fishmap
 ```
 
