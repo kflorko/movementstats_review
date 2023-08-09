@@ -512,13 +512,51 @@ hmm_angledist_plot
 Here we allow prey diversity to influence the step length in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
 
 ```{r fit hmm emission probability}
-
 # state transition probability formula
-distFormula = ~ state1(preydiv) + state2(preydiv) + state3(preydiv)
+distFormula <- ~ preydiv
+stepDM <- list(mean = distFormula, sd = distFormula) 
+angleDM <- list(concentration = distFormula) 
+DM <- list(step = stepDM, angle = angleDM)
+# get parameters 
+Par0_hmm4_km <- momentuHMM::getPar0(hmm2_km, DM = DM)
 
-# RON HELP PLEASE! Hopefully we can use most of the above HMM formatting to just incorporate this formula
-
+# fit HMM with parameters from hmm2_km and initial slope parameters set to 0
+set.seed(2023)
+hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+                              stateNames = c("Localized search", "Area-restricted search", "Travelling"),
+            dist=list(step=stepDist,angle=angleDist),
+            Par0=Par0_hmm4_km$Par,
+            delta0 = Par0_hmm4_km$delta, 
+            beta0 = Par0_hmm4_km$beta,
+            formula=formula,
+            DM = DM)
 ```
+```{r}
+plot(hmm4_km, ask = F, col = colours.states, plotCI = TRUE)
+```
+plots show that as prey diversity increases, the step length mean and SD appear to decrease during localized search. Mean step length does not appear to change significantly during area-restricted search, though the SD may decrease with prey diversity Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
+
+There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during localized search (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
+
+Last, there is no apparent effect of prey diversity on transitions from localized search or area restricted search. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to localized search, an increase in transition probability from travel to area restricted search, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
+
+```{r}
+statianary_est <- plotStationary(hmm4_km, col = colours.states, plotCI = TRUE, 
+                                 return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
+# combine into long data.frame as required by ggplot
+statianary_est <- bind_rows(statianary_est[[1]]) %>% 
+  mutate(state = rep(hmm4_km$stateNames, each = 101))
+# generate plot
+ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
+  geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2) + 
+  geom_line(aes(col = state)) + 
+  scale_colour_manual(values=colours.states) +
+  scale_fill_manual(values=colours.states) +
+  ylab("State Probability") + 
+  xlab("Prey Diversity") +
+  theme_minimal()
+```
+
 
 
 
