@@ -62,6 +62,7 @@ fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 
 ```
 
 Visualize the fish data. *MAM: I think here you want to use sf rather than sp, sp is pretty much getting removed. The sf function for spTransform is st_transform I think. I think also that now instead of using CRS, all R functions use another system. That's why you are getting warnings. R now uses EPSG, I think the number you want is 3573 or something like that: https://epsg.io/3573 But please check.*
+
 ```{r plot fish, message = FALSE}
 
 # prepare world data for mapping
