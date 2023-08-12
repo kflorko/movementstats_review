@@ -138,6 +138,7 @@ We now extract covariates (prey diversity) for the used and available locations.
 
 data_rsf <- data_rsf %>%
   extract_covariates(fish_raster)
+
 ```
 
 Next, we will fit the model. The response, `case_`, is the used or available location, and `preydiv` is the covariate for prey diversity.
@@ -519,21 +520,24 @@ stepDM <- list(mean = distFormula, sd = distFormula)
 angleDM <- list(concentration = distFormula) 
 DM <- list(step = stepDM, angle = angleDM)
 # get parameters 
-Par0_hmm4_km <- momentuHMM::getPar0(hmm2_km, DM = DM)
+Par0_hmm5_km <- momentuHMM::getPar0(hmm2_km, DM = DM)
 
 # fit HMM with parameters from hmm2_km and initial slope parameters set to 0
 set.seed(2023)
-hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
-                              stateNames = c("Localized search", "Area-restricted search", "Travelling"),
+hmm5_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+                              stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm4_km$Par,
-            delta0 = Par0_hmm4_km$delta, 
-            beta0 = Par0_hmm4_km$beta,
+            Par0=Par0_hmm5_km$Par,
+            delta0 = Par0_hmm5_km$delta, 
+            beta0 = Par0_hmm5_km$beta,
             formula=formula,
             DM = DM)
 ```
+
+
+
 ```{r}
-plot(hmm4_km, ask = F, col = colours.states, plotCI = TRUE)
+plot(hmm5_km, ask = F, col = colours.states, plotCI = TRUE)
 ```
 plots show that as prey diversity increases, the step length mean and SD appear to decrease during localized search. Mean step length does not appear to change significantly during area-restricted search, though the SD may decrease with prey diversity Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
 
@@ -542,11 +546,15 @@ There is no significant effect of prey diversity in turn angle concentration on 
 Last, there is no apparent effect of prey diversity on transitions from localized search or area restricted search. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to localized search, an increase in transition probability from travel to area restricted search, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
 
 ```{r}
-statianary_est <- plotStationary(hmm4_km, col = colours.states, plotCI = TRUE, 
+statianary_est <- plotStationary(hmm5_km, col = colours.states, plotCI = TRUE, 
                                  return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
+
+
 # combine into long data.frame as required by ggplot
-statianary_est <- bind_rows(statianary_est[[1]]) %>% 
+statianary_est <- dplyr::bind_rows(statianary_est[[1]]) %>% 
   mutate(state = rep(hmm4_km$stateNames, each = 101))
+
+
 # generate plot
 ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
   geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2) + 
@@ -823,8 +831,8 @@ Visualize results.
 map_rsf <- ggplot() + 
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
   scale_fill_viridis(option = "mako", name = "RSF prediction",limits = c(0,0.14)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_rsf
 
@@ -881,7 +889,7 @@ p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
 
 # plot simulated track
 ssf_track_1 <- fishmap +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   geom_point(data = p1_burnt, aes(x = x_,y = y_), alpha = 0.61) +
   geom_path(data = p1_burnt, aes(x = x_,y = y_)) +
   theme_void()
@@ -907,8 +915,8 @@ uds_ssf1 <- tibble(rep = 1:n_steps1,
 map_ssf1 <- ggplot() + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_ssf1
 ```
@@ -941,7 +949,7 @@ p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
 
 # plot simulated track
 ssf_track_2 <- fishmap +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61) +
   geom_path(data = p2_burnt, aes(x = x_,y = y_)) +
   theme_void()
@@ -962,8 +970,8 @@ uds_ssf2 <- tibble(rep = 1:n_steps1,
 map_ssf2 <- ggplot() + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_ssf2
 ```
@@ -997,8 +1005,8 @@ map_hmm <- ggplot() +
   geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1)) +
   labs(fill = 'HMM predicted\nprobability') +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   facet_wrap(~model, labeller = as_labeller(c('hmm_state1' = "Slow movement",
                                               'hmm_state2' = "Moderate movement",
                                               'hmm_state3' = "Fast movement"))) +
