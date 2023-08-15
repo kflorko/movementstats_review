@@ -53,23 +53,36 @@ library(ggplot2)
 
 ## Prey diversity data
 
-Next we load in the fish data, which contains the spatial distribution of prey diversity in 2012. This is a subset of the data from Florko et al. (2021a, 2021b).
+Next we load in the fish data, which contains the spatial distribution of prey diversity in 2012. The data is in a .csv, and we will rasterize this using it's specific coordinate reference system. This is a subset of the data from Florko et al. (2021a, 2021b).
+
 ```{r load fish}
 # load prey diversity data
 fish <- read.csv(here("data/preydiv.csv"))
 
 # rasterize prey diversity data
-# fish_raster <- terra::rast(fish, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 fish_raster <- terra::rast(fish, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# convert to latlong
+test <- fish %>%
+  as.data.frame() %>%
+  st_as_sf(coords = c("lon", "lat")) %>%
+  st_set_crs("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0") %>%
+  st_transform("+proj=longlat +datum=WGS84") %>%
+  mutate(long = unlist(map(geometry,1)),
+         lat = unlist(map(geometry,2))) %>%
+  st_drop_geometry() %>%
+  terra::rast()
+
 ```
 
-Visualize the fish data. *MAM: I think here you want to use sf rather than sp, sp is pretty much getting removed. The sf function for spTransform is st_transform I think. I think also that now instead of using CRS, all R functions use another system. That's why you are getting warnings. R now uses EPSG, I think the number you want is 3573 or something like that: https://epsg.io/3573 But please check.*
+Visualize the fish data. 
 
 ```{r plot fish, message = FALSE}
 
-# prepare world data for mapping
+# prepare land data for mapping
 natearth <- ne_countries(scale = "medium",returnclass = "sf")
 natearth <- natearth[which(natearth$continent!="Antarctica"),]
+
 # projection: project land to match fish raster 
 nat_trans <- st_transform(natearth, crs(fish_raster))
 
@@ -86,6 +99,7 @@ fishmap
 ## Seal data
 
 Next we load in one movement track from a ringed seal equipped with an ARGOS satellite telemetry transmitter over the course of over four months in the winter of 2012-2013. This is a subset of the data from Florko et al. (2023a).
+
 ```{r seal data, message = FALSE}
 # load seal data
 seal <- read.csv(here("data/seal_track_m.csv")) 
@@ -116,6 +130,7 @@ All of the step selection functions (both the RSF and two SSFs) will be fit usin
 ## RSF
 
 The RSF is the simplest of the four models. Fitting an RSF to movement data first requires us to generate a sample of availability points and extract covariates for the used and available locations. 
+
 ```{r rsf data}
 # prep data and generate availability sample
 set.seed(2023)
@@ -133,7 +148,8 @@ data_rsf_map
 
 We can see that the availability sample is generated within the minimum convex polygon of the used samples. 
 
-We now extract covariates (prey diversity) for the used and available locations.
+We now extract covariate (prey diversity) values for the used and available locations.
+
 ```{r rsf extract}
 
 data_rsf <- data_rsf %>%
@@ -142,7 +158,9 @@ data_rsf <- data_rsf %>%
 ```
 
 Next, we will fit the model. The response, `case_`, is the used or available location, and `preydiv` is the covariate for prey diversity.
+
 ```{r rsf fit}
+
 # fit rsf (a binomial logistic regression)
 rsf1 <- data_rsf %>%
   amt::fit_rsf(case_ ~ preydiv, model = TRUE)
@@ -183,13 +201,14 @@ data_ssf_map
 We can see that the availability sample is generated at each step and is not restricted to the minimum convex polygon.
 
 We now extract prey diversity values for the used and available locations.
+
 ```{r ssf extract, message = FALSE}
+
 # extract prey diversity covariate
 data_ssf <- data_ssf %>%
   extract_covariates(fish_raster, where = "end") #sample at end of step
 
 ```
-
 
 We will transform both the step length and turning angle using log and cosine transformations, respectively.
 ```{r ssf dataprep}
@@ -239,12 +258,15 @@ Similar to ssf1, we don't see any significant relationships. Note that we also i
 
 ## HMM - Allowing prey diversity to affect the state transition probability
 
-Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the emission probability. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
+Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. We will first fit a two-state model.
+
+This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the emission probability. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
 
 *MAM: you need to break this down and explain the steps. I would include the two-state HMM that you fitted and show how you decided that it should be 3 states. Also, really you'd want to have it in km in the first time. The HMM is mostly dividing the state based on speed, so km would make more sense. This also means that the SSF would make more sense in KM. I would do the KM transformation above (I thought that's what you were doing with you projection, and do all analysis in km).*
 
 ```{r fit hmm, message = FALSE}
-## prep data in lat/lon and refit model (so step length is in kilometers)
+
+## prepare the data
 data_hmm <- seal %>%
   make_track(lon, lat, date) %>%
   extract_covariates(fish_raster) %>%
@@ -261,10 +283,15 @@ data_hmm <- seal %>%
          lat = unlist(map(geometry,2))) %>%
   st_drop_geometry()
 
-# do momentuhmm which calculates step length in KM
+# calculate step length
 data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type = "LL", covNames = c("preydiv"))
 
-# first let us try fitting a two-state HMM
+```
+
+Define the starting parameters.
+
+```{r fit hmm, message = FALSE}
+
 # define parameters
 nbStates <- 2 # number of states
 stepDist <- "gamma" # step distribution
@@ -278,16 +305,31 @@ kappa0 <- c(0.35, 0.5)  # turning angle for each state
 
 formula = ~ preydiv # identify covariates
 
-# fit HMM (with step in km)
+```
+
+Fit the two-state HMM.
+
+```{r fit hmm, message = FALSE}
+
 set.seed(2023)
 hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             dist=dist,
             Par0=list(step=stepPar0,angle=kappa0))
 
-# retrieve parameters to refine model
+```
+
+Retrieve parameters to refine the model.
+
+```{r fit hmm, message = FALSE}
+
 Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
-# fit a refined HMM with parameters from hmm1_km
+```
+
+Fit a refined HMM with parameters from the initial two-state HMM.
+
+```{r fit hmm, message = FALSE}
+
 set.seed(2023)
 hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             dist=list(step=stepDist,angle=angleDist),
@@ -295,11 +337,22 @@ hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             delta0 = Par0_hmm1_km$delta, 
             beta0 = Par0_hmm1_km$beta,
             formula=formula)
+
+```
+
+Visualize the results.
+
+```{r fit hmm, message = FALSE}
+
 plot(hmm2_km)
-# we can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We will try fitting a three-state HMM to see if this better captures those movements.
 
+```
 
-# let us try fitting a three-state HMM
+We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We will try fitting a three-state HMM to see if this better captures those movements.
+
+Define starting parameters for a three-state HMM.
+
+```{r fit hmm, message = FALSE}
 
 # define parameters
 nbStates <- 3 # number of states
@@ -313,16 +366,31 @@ kappa0 <- c(0.35, 0.55, 0.5)  # turning angle for each state
 
 formula = ~ preydiv # identify covariates
 
-# fit HMM (with step in km)
+```
+
+Fit the three-state HMM.
+
+```{r fit hmm, message = FALSE}
+
 set.seed(2023)
 hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             dist=list(step=stepDist,angle=angleDist),
             Par0=list(step=stepPar0,angle=kappa0))
 
-# retrieve parameters to refine model
+```
+
+Retrieve parameters to refine the model. 
+
+```{r fit hmm, message = FALSE}
+
 Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
 
-# fit a refined HMM with parameters from hmm1_km
+```
+
+Fit a refined HMM with the parameters from the initial three-state HMM.
+
+```{r fit hmm, message = FALSE}
+
 set.seed(2023)
 hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             dist=list(step=stepDist,angle=angleDist),
@@ -331,183 +399,28 @@ hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             beta0 = Par0_hmm3_km$beta,
             formula=formula)
 
+```
+
+We can view the parameters and regression coefficients for the transition probabilities.
+
+```{r fit hmm, message = FALSE}
+
+print(hmm4_km)
+
+```
+
+It's helpful to visualize the results for easier interpretation of the parameters and regression coefficients.
+
+```{r fit hmm, message = FALSE}
+
 plot(hmm4_km)
-# Much better! We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states.
-
-# add the state estimate from the HMM
-data_hmm$state <- as.factor(momentuHMM::viterbi(hmm4_km))
-
-
-# view the regression coeffients for the transition probabilities
-print(hmm2_km)
 
 ```
 
-We plot the decoded states (estimated behaviours).
-```{r hmm decoded states, message = FALSE}
-# plot decoded states
-data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2_km))
-hmmstate_plot <- ggplot() +
-  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
-  geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
-  geom_point(data=data_hmm, aes(x=x, y=y, color = state, shape = state), size=2, alpha = 0.8) + 
-  scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), 
-                     labels = c("Localized\nsearch", "Area-restricted\nsearch", "Travelling"), 
-                     name = "HMM state") +
-  scale_shape_manual(values = c(15, 16, 17), 
-                     labels=c("Localized\nsearch", "Area-restricted\nsearch", "Travelling"), 
-                     name = "HMM state") +
-   geom_sf(data = nat_trans, fill = "grey80", color = "white") +
-  coord_sf(crs = 4326, xlim = range(data_hmm$x), ylim = range(data_hmm$y))
-hmmstate_plot
-```
+We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states.
 
-Plot a histogram of step lengths for each state. In order to do this, we need to transform the movement data to UTM and refit our HMM in order to get step length in a meaningful unit (i.e., kilometers).
+For code to recreate the more polished figures in the paper, please refer to the script `figures.rmd`.
 
-*MAM: see comment above re km. Also, this needs to be broken down and explained. You need to talk about what you are doing, the arguments of the main functions, and interpret the results. As for main text, please change the name of the 3 behaviours. Also, it may be more straightforward if for some of these figures you just use the functions from momentuHMM, rather than you own plot functions (less code). I don't think it matters if the colours don't match the paper, and you can refer the reader to another script with the details to recreate your exact figures.*
-```{r hmm histogram step length, message = FALSE}
-## prep data in lat/lon and refit model (so step length is in kilometers)
-data_hmm <- seal %>%
-  make_track(lon, lat, date) %>%
-  extract_covariates(fish_raster) %>%
-    mutate(ID = 1,
-         x = x_,
-         y = y_,
-         date = t_) %>%
-  dplyr::select(ID, x, y, date, preydiv) %>%
-  as.data.frame() %>%
-  st_as_sf(coords = c("x", "y")) %>%
-  st_set_crs("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0") %>%
-  st_transform("+proj=longlat +datum=WGS84") %>%
-  mutate(long = unlist(map(geometry,1)),
-          lat = unlist(map(geometry,2))) %>%
-  st_drop_geometry()
-
-# do momentuhmm which calculates step length in KM
-data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type = "LL", covNames = c("preydiv"))
-
-
-# define parameters
-nbStates <- 3
-stepDist <- "gamma" # step distribution
-angleDist <- "vm" # turning angle distribution
-
-mu0 <- c(5, 12, 38)
-sigma0 <- c(3, 5, 8)
-stepPar0 <- c(mu0, sigma0)
-kappa0 <- c(0.35, 0.55, 0.5)
-
-# fit HMM (with step in km)
-set.seed(2023)
-hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
-            dist=list(step=stepDist,angle=angleDist),
-            Par0=list(step=stepPar0,angle=kappa0))
-
-# get parameters 
-Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
-
-# fit HMM with parameters from hmm1_km
-set.seed(2023)
-hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
-            dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm1_km$Par,
-            delta0 = Par0_hmm1_km$delta, 
-            beta0 = Par0_hmm1_km$beta,
-            formula=formula)
-
-# add the state estimate from the HMM
-data_hmm$state <- as.factor(momentuHMM::viterbi(hmm2_km))
-
-# calculate frequencies of states
-v <- momentuHMM::viterbi(hmm2_km)
-stateFreq <- table(v) / length(v)
-
-# plot colours
-colours.states <- c("#99DDB6", "#539D9C", "#312C66")
-
-# generate sequence for x axis of density functions
-x <- seq(0, 50, length=1000)
-
-# get converged mean and sd for each state 
-meanARS <- hmm2_km$mle$step[1,1]  
-sdARS <- hmm2_km$mle$step[2,1]    
-
-meanCR <- hmm2_km$mle$step[1,2]    
-sdCR <- hmm2_km$mle$step[2,2]     
-
-meanTR <- hmm2_km$mle$step[1,3]    
-sdTR <- hmm2_km$mle$step[2,3]    
-
-# calculate shape and scale of the gamma distributions from mean and sd
-sh <- function(mean, sd) { return(mean^2 / sd^2)}
-sc <- function(mean, sd) { return(sd^2 / mean)}
-
-# get density functions of the distributions
-y_ARS <- dgamma(x, shape=sh(meanARS,sdARS),  scale=sc(meanARS,sdARS)) * stateFreq[[1]]
-y_CR <- dgamma(x, shape=sh(meanCR,sdCR),  scale=sc(meanCR,sdCR)) * stateFreq[[2]]
-y_TR <- dgamma(x, shape=sh(meanTR,sdTR),  scale=sc(meanTR,sdTR)) * stateFreq[[3]]
-
-
-# combine densities in a single dataframe for more convenient plotting
-df.y_ARS <- data.frame(dens=y_ARS, State="Foraging", x=x)
-df.y_CR <- data.frame(dens=y_CR,  State="ARS", x=x)
-df.y_TR <- data.frame(dens=y_TR,  State="Travelling", x=x)
-statedis <- rbind(df.y_ARS, df.y_CR, df.y_TR)
-
-# plot distributions
-hmm_stepdist_plot <- ggplot() +
-  geom_line(data=statedis,aes(x=x,y=dens,colour=State,linetype=State), size=1.2) +
-  scale_colour_manual(values=c(colours.states,"#000000"), 
-              breaks = c('Foraging', 'ARS', 'Travelling'), 
-              labels=c("Localized search", "Area-restricted search", "Travelling")) +
-  scale_linetype_manual(values=c("solid","solid", "solid"), 
-              breaks = c('Foraging', 'ARS', 'Travelling'), 
-              labels=c("Localized search", "Area-restricted search", "Travelling")) +
-  ylab("Density") + 
-  xlab("Step length (kms)") +
-  theme_minimal()
-hmm_stepdist_plot
-```
-
-Plot a histogram of turning angle for each state. 
-```{r hmm histogram turning angle, message = FALSE}
-
-# generate sequence for x axis of density functions
-x <- seq(-pi, pi,length=1000)
-
-# get converged mean and concentration for each state 
-meanARS <- hmm2_km$mle$angle[1,1]  
-sdARS <- hmm2_km$mle$angle[2,1]    
-
-meanCR <- hmm2_km$mle$angle[1,2]    
-sdCR <- hmm2_km$mle$angle[2,2]  
-
-meanTR <- hmm2_km$mle$angle[1,3]    
-sdTR <- hmm2_km$mle$angle[2,3]  
-
-# get density functions of the distributions
-y_ARS <- CircStats::dvm(x, mu=meanARS,  kappa=sdARS) * stateFreq[[1]]
-y_CR <- CircStats::dvm(x, mu=meanCR,  kappa=sdCR) * stateFreq[[2]]
-y_TR <- CircStats::dvm(x, mu=meanTR,  kappa=sdTR) * stateFreq[[3]]
-
-
-# combine densities in a single dataframe for more convenient plotting
-df.y_ARS <- data.frame(dens=y_ARS, State="Foraging",x=x)
-df.y_CR <- data.frame(dens=y_CR,  State="ARS",x=x)
-df.y_TR <- data.frame(dens=y_TR,  State="Travelling",x=x)
-
-cmb <- rbind(df.y_TR, df.y_CR, df.y_ARS)
-
-# plot distributions
-hmm_angledist_plot <- ggplot() +
-  geom_line(data=cmb,aes(x=x,y=dens,colour=State), size = 1.2) +
-  scale_colour_manual(values=c(colours.states), breaks = c('Foraging', 'ARS', 'Travelling'), labels=c("Localized search", "Area-restricted search", "Travelling")) +
-  scale_x_continuous(limits=c(-pi,pi))+
-  ylab("Density") + 
-  xlab("Turn angle (radians) ") +
-  theme_minimal()
-hmm_angledist_plot
-```
 
 ## HMM - Allowing prey diversity to affect the emission probability
 
@@ -539,11 +452,12 @@ hmm5_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
 ```{r}
 plot(hmm5_km, ask = F, col = colours.states, plotCI = TRUE)
 ```
-plots show that as prey diversity increases, the step length mean and SD appear to decrease during localized search. Mean step length does not appear to change significantly during area-restricted search, though the SD may decrease with prey diversity Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
 
-There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during localized search (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
+Plots show that as prey diversity increases, the step length mean and SD appear to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement, though the SD may decrease with prey diversity. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
 
-Last, there is no apparent effect of prey diversity on transitions from localized search or area restricted search. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to localized search, an increase in transition probability from travel to area restricted search, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
+There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
+
+Last, there is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
 
 ```{r}
 statianary_est <- plotStationary(hmm5_km, col = colours.states, plotCI = TRUE, 
@@ -552,7 +466,7 @@ statianary_est <- plotStationary(hmm5_km, col = colours.states, plotCI = TRUE,
 
 # combine into long data.frame as required by ggplot
 statianary_est <- dplyr::bind_rows(statianary_est[[1]]) %>% 
-  mutate(state = rep(hmm4_km$stateNames, each = 101))
+  mutate(state = rep(hmm5_km$stateNames, each = 101))
 
 
 # generate plot
@@ -785,7 +699,7 @@ line_hmm <- ggplot() +
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
   geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
               alpha = 0.4, show.legend = TRUE) +
-  ylab("Stationary state probabilties") +
+  ylab("State probabilty") +
   xlab("Prey diversity") +
   scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), name = "HMM state",
                      labels=c("Slow movement", "Moderate movement", "Fast movement")) +
