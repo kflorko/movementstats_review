@@ -419,15 +419,28 @@ For code to recreate the more polished figures in the paper, please refer to the
 
 Here we allow prey diversity to influence the step length in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
 
-```{r fit hmm emission probability}
+First we define the formulas.
 
-# state transition probability formula
+```{r define parameters for hmm emission probability}
+
 distFormula <- ~ preydiv
 stepDM <- list(mean = distFormula, sd = distFormula) 
 angleDM <- list(concentration = distFormula) 
 DM <- list(step = stepDM, angle = angleDM)
-# get parameters 
+
+```
+
+Next we grab the parameters from our refined three-state HMM.
+
+```{r grab parameters for hmm emission probability}
+
 Par0_hmm5_km <- momentuHMM::getPar0(hmm4_km, DM = DM)
+
+```
+
+Fit the model.
+
+```{r fit hmm emission probability}
 
 # fit HMM with parameters from hmm2_km and initial slope parameters set to 0
 set.seed(2023)
@@ -442,13 +455,13 @@ hmm5_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
 
 ```
 
-
+Visualize the results.
 
 ```{r}
 plot(hmm5_km, ask = F, plotCI = TRUE)
 ```
 
-Plots show that as prey diversity increases, the step length mean and SD appear to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement, though the SD may decrease with prey diversity. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
+The plots show that as prey diversity increases, the step length mean and standard deviation appear to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement, though the standard deviation may decrease with prey diversity. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
 
 There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
 
@@ -546,8 +559,8 @@ We see a positive relationship between prey diversity and log-RSS, which suggest
 
 We can also calculate the log-RSS for our SSFs following the same workflow as for the RSF. Since log_rss() passes to predict(), it is important that the fit SSF includes `model = TRUE`. 
 
-First, we will calculate log-RSS for ssf1.
-*MAM: you have to break this down and explain*
+First, we will calculate log-RSS for ssf1. Again, since `log_rss()` only assesses one location relative to a reference point, we will use lapply to iterate through all locations, and bind the rows together after so that we have a single data frame for plotting.
+
 ```{r ssf1 log-rss}
 ## log-RSS prediction for ssf1
 # apply log_rss() to each row
@@ -564,6 +577,7 @@ res2 <- dplyr::bind_rows(log_rss_list) %>%
 ```
 
 Visualize results.
+
 ```{r ssf1 log-rss plot}
 # plot
 line_ssf1 <- ggplot() +
@@ -587,17 +601,18 @@ nums <- seal %>%
   make_track(lon, lat, date) %>%
   steps %>%
   mutate(log_sl = log(sl_)) %>%
-  summarize(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
+  dplyr::reframe(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
   pull()
 
 nums
 ```
 
 Now apply log-RSS to each row, for each speed (step length percentile).
+
 ```{r ssf2 log-rss}
 # set-up to run function for each speed
-results_ssf2 <- lapply(nums, function(i) {
-x1$log_sl <- i
+results_ssf2 <- lapply(nums, function(j) {
+x1$log_sl <- j
 
 # calculate log-RSS
   log_rss_list <- lapply(1:nrow(x1), function(i) {
@@ -612,17 +627,19 @@ x1$log_sl <- i
 
 ```
 
-Bind the output together.
+Bind the output together, and name the step lengths based on how long they are, so that we can interpret them in the subsequent plot as different speeds.
+
 ```{r ssf2 log-rss bind}
 # bind rows of all speed's prediction
 results_ssf2 <- dplyr::bind_rows(results_ssf2) %>%
   mutate(log_sl_x1 = as.factor(round(log_sl_x1,1)),
-         Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "slow",
-                                  as.factor(log_sl_x1) == "9.2" ~ "moderate",
-                                  as.factor(log_sl_x1) == "9.6" ~ "fast"))
+         Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "Slow",
+                                  as.factor(log_sl_x1) == "9.2" ~ "Moderate",
+                                  as.factor(log_sl_x1) == "9.6" ~ "Fast"))
 ```
 
 Visualize results.
+
 ```{r ssf2 log-rss plot}
 # plot
 line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
@@ -739,7 +756,7 @@ Visualize results.
 map_rsf <- ggplot() + 
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
   scale_fill_viridis(option = "mako", name = "RSF prediction",limits = c(0,0.14)) +
-   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_rsf
@@ -748,10 +765,8 @@ map_rsf
 
 ## SSF
 
-We can use the `amt` functions to estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel.
+We can use the `amt` functions to estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel. When estimating the SSUDs, the functions require that covariates are specifically labelled as occuring at the end of the step (i.e., `preydiv_end`). This is easily implemented by specificing `where = "both"` when using `extract_covariates`, which will then produce a column for `preydiv_start` and `preydiv_end`. By default, as in our initial fitting, `extract_covariates` extracts data for the end of the step, but does not record the `_start` or `_end` suffix. Thus, we are re-extracting covariates for ease throughout the generation of the SSUDs.
 
-*MAM: you need to explain why you are fitting it again*
-*MAM: add that you can load them in because it takes time*
 
 ```{r ssf1 refit}
 # generate availability sample
@@ -768,48 +783,74 @@ data_ssf <- seal %>%
 m1 <- data_ssf |> 
   fit_clogit(case_ ~ preydiv_end +  log(sl_) + cos(ta_) + 
                strata(step_id_))
+```
 
-### This
-# set starting position for the simulation
+Now we will set the starting position for the simulation.
+
+```{r ssf1 set start}
+
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
-                       make_track(lon, lat, date))[1,]) 
+                       make_track(lon, lat, date))[1,])
+```
 
-# set constants
+We can also set constants for how many steps we want to simulate. Additionally, we set a burn-in number of steps, where we later remove this number of steps from the simulated path to reduce the influence of the starting point.
+
+```{r ssf1 set constants}
+
 n_steps = 1e4 # number of steps
 n_steps1 = n_steps + 1 # number of steps + 1
 burnin <- n_steps/50 # number of steps to remove for the burn-in
 
-# generate redistribution kernel
+```
+
+Generate the redistribution kernel. 
+
+```{r ssf1 set redistribution kernel}
+
 k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
                             stochastic = TRUE,
                             tolerance.outside = 1,
                             n.control = n_steps)
 
-# simulate path
+```
+
+Simulate the path. This function will likely take about five minutes on most laptops. As such, I have added the resulting simulated paths `/data/p1_1e4` Feel free to uncomment the `read.csv` line to load it in instead of running the `simulate_path` if prefered. Additionally, I have also ran the simulation with 1e5 steps. This takes about 12 hours to run, so we will not use those data here, but this can be loaded as `/data/p1_1e4`. Our plots in the main paper use 1e5 steps.
+
+```{r ssf1 simulate path}
+
 set.seed(2023)
-p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
-#p1 <- read.csv(here("data/p1.csv")) %>% as_tibble()
+p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
 
+#p1 <- read.csv(here("data/p1_1e4.csv")) %>% as_tibble()
 
-# burn-in
+```
+
+Remove the burn-in.
+
+```{r ssf1 set start}
+
 p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
 
-# plot simulated track
+```
+
+Visualize the simulated path.
+
+```{r ssf1 set start}
+
 ssf_track_1 <- fishmap +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   geom_point(data = p1_burnt, aes(x = x_,y = y_), alpha = 0.61) +
   geom_path(data = p1_burnt, aes(x = x_,y = y_)) +
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 ssf_track_1
 
 ```
 
-We can see that it mostly stays within the study area. We will use this track to estimate the SSUD, and visualize the results.
+We will use this track to estimate the SSUD. We will convert the estimated SSUD to a data frame for easy plotting.
 
-*MAM: You also need to state above that you are not using the same number of simulations for the tutorial, because it would take too long to run. Add a warning for anything that takes more than 1-2 min. (e.g. this will likely take time to run).*
 ```{r ssf1 ssud plot}
-# estimate SSUD
 uds_ssf1 <- tibble(rep = 1:n_steps1, 
     x_ = p1$x_, y_ = p1$y_,
     t_ = p1$t_, dt = p1$dt) |> 
@@ -818,21 +859,27 @@ uds_ssf1 <- tibble(rep = 1:n_steps1,
   hr_kde(trast = fish_raster, which_min = "global") %>%
   hr_ud() %>% 
   terra::as.data.frame(xy = TRUE)
+```
 
-# plot SSUD
+Visualize the results.
+
+```{r ssf1 ssud plot}
+
 map_ssf1 <- ggplot() + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
-   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_ssf1
+
 ```
+
+The map shows that probability of use is fairly generally distributed in space.
 
 
 We will follow the same steps to generate a SSUD for the SSF that allows prey diversity to affect the movement kernel.
 
-*MAM: please ask J. Signer about the  tolerance.outside = 1 in the discussion chain on Github. And then explain what it means here, because it's pretty weird. You need to break this down and explain.*
 ```{r ssf2 refit}
 m2 <- data_ssf |> 
   fit_clogit(case_ ~ preydiv_end * log(sl_) + cos(ta_) + 
@@ -857,9 +904,10 @@ p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
 
 # plot simulated track
 ssf_track_2 <- fishmap +
-   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61) +
   geom_path(data = p2_burnt, aes(x = x_,y = y_)) +
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 ssf_track_2
 
@@ -878,7 +926,7 @@ uds_ssf2 <- tibble(rep = 1:n_steps1,
 map_ssf2 <- ggplot() + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
-   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_ssf2
