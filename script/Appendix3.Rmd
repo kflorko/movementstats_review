@@ -62,17 +62,6 @@ fish <- read.csv(here("data/preydiv.csv"))
 # rasterize prey diversity data
 fish_raster <- terra::rast(fish, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
-# convert to latlong
-test <- fish %>%
-  as.data.frame() %>%
-  st_as_sf(coords = c("lon", "lat")) %>%
-  st_set_crs("+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0") %>%
-  st_transform("+proj=longlat +datum=WGS84") %>%
-  mutate(long = unlist(map(geometry,1)),
-         lat = unlist(map(geometry,2))) %>%
-  st_drop_geometry() %>%
-  terra::rast()
-
 ```
 
 Visualize the fish data. 
@@ -264,7 +253,7 @@ This HMM example is parameterized to allow the covariate, prey diversity, influe
 
 *MAM: you need to break this down and explain the steps. I would include the two-state HMM that you fitted and show how you decided that it should be 3 states. Also, really you'd want to have it in km in the first time. The HMM is mostly dividing the state based on speed, so km would make more sense. This also means that the SSF would make more sense in KM. I would do the KM transformation above (I thought that's what you were doing with you projection, and do all analysis in km).*
 
-```{r fit hmm, message = FALSE}
+```{r prep hmm data , message = FALSE}
 
 ## prepare the data
 data_hmm <- seal %>%
@@ -290,7 +279,7 @@ data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type =
 
 Define the starting parameters.
 
-```{r fit hmm, message = FALSE}
+```{r define starting parameters hmm1, message = FALSE}
 
 # define parameters
 nbStates <- 2 # number of states
@@ -309,10 +298,11 @@ formula = ~ preydiv # identify covariates
 
 Fit the two-state HMM.
 
-```{r fit hmm, message = FALSE}
+```{r fit hmm1, message = FALSE}
 
 set.seed(2023)
 hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+            stateNames = c("Slow movement", "Moderate movement"),
             dist=dist,
             Par0=list(step=stepPar0,angle=kappa0))
 
@@ -320,7 +310,7 @@ hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 Retrieve parameters to refine the model.
 
-```{r fit hmm, message = FALSE}
+```{r grab parameters hmm1, message = FALSE}
 
 Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
@@ -328,10 +318,11 @@ Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
 Fit a refined HMM with parameters from the initial two-state HMM.
 
-```{r fit hmm, message = FALSE}
+```{r fit hmm2, message = FALSE}
 
 set.seed(2023)
 hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
+            stateNames = c("Slow movement", "Moderate movement"),
             dist=list(step=stepDist,angle=angleDist),
             Par0=Par0_hmm1_km$Par,
             delta0 = Par0_hmm1_km$delta, 
@@ -342,7 +333,7 @@ hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
 
 Visualize the results.
 
-```{r fit hmm, message = FALSE}
+```{r plot hmm2, message = FALSE}
 
 plot(hmm2_km)
 
@@ -352,7 +343,7 @@ We can see from the step-length histogram and the map that it doesn't look like 
 
 Define starting parameters for a three-state HMM.
 
-```{r fit hmm, message = FALSE}
+```{r define starting parameters hmm3, message = FALSE}
 
 # define parameters
 nbStates <- 3 # number of states
@@ -370,10 +361,11 @@ formula = ~ preydiv # identify covariates
 
 Fit the three-state HMM.
 
-```{r fit hmm, message = FALSE}
+```{r fit hmm3, message = FALSE}
 
 set.seed(2023)
 hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+            stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
             Par0=list(step=stepPar0,angle=kappa0))
 
@@ -381,7 +373,7 @@ hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 Retrieve parameters to refine the model. 
 
-```{r fit hmm, message = FALSE}
+```{r grab parameters from hmm3, message = FALSE}
 
 Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
 
@@ -389,10 +381,11 @@ Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
 
 Fit a refined HMM with the parameters from the initial three-state HMM.
 
-```{r fit hmm, message = FALSE}
+```{r fit hmm4, message = FALSE}
 
 set.seed(2023)
 hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+            stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
             Par0=Par0_hmm3_km$Par,
             delta0 = Par0_hmm3_km$delta, 
@@ -403,7 +396,7 @@ hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
 
 We can view the parameters and regression coefficients for the transition probabilities.
 
-```{r fit hmm, message = FALSE}
+```{r print hmm4, message = FALSE}
 
 print(hmm4_km)
 
@@ -411,7 +404,7 @@ print(hmm4_km)
 
 It's helpful to visualize the results for easier interpretation of the parameters and regression coefficients.
 
-```{r fit hmm, message = FALSE}
+```{r plot hmm4, message = FALSE}
 
 plot(hmm4_km)
 
@@ -427,30 +420,32 @@ For code to recreate the more polished figures in the paper, please refer to the
 Here we allow prey diversity to influence the step length in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
 
 ```{r fit hmm emission probability}
+
 # state transition probability formula
 distFormula <- ~ preydiv
 stepDM <- list(mean = distFormula, sd = distFormula) 
 angleDM <- list(concentration = distFormula) 
 DM <- list(step = stepDM, angle = angleDM)
 # get parameters 
-Par0_hmm5_km <- momentuHMM::getPar0(hmm2_km, DM = DM)
+Par0_hmm5_km <- momentuHMM::getPar0(hmm4_km, DM = DM)
 
 # fit HMM with parameters from hmm2_km and initial slope parameters set to 0
 set.seed(2023)
 hmm5_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
-                              stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
+            stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
             Par0=Par0_hmm5_km$Par,
             delta0 = Par0_hmm5_km$delta, 
             beta0 = Par0_hmm5_km$beta,
             formula=formula,
             DM = DM)
+
 ```
 
 
 
 ```{r}
-plot(hmm5_km, ask = F, col = colours.states, plotCI = TRUE)
+plot(hmm5_km, ask = F, plotCI = TRUE)
 ```
 
 Plots show that as prey diversity increases, the step length mean and SD appear to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement, though the SD may decrease with prey diversity. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
@@ -460,27 +455,25 @@ There is no significant effect of prey diversity in turn angle concentration on 
 Last, there is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
 
 ```{r}
-statianary_est <- plotStationary(hmm5_km, col = colours.states, plotCI = TRUE, 
-                                 return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
-
+statianary_est <- plotStationary(hmm5_km, plotCI = TRUE, return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
 
 # combine into long data.frame as required by ggplot
 statianary_est <- dplyr::bind_rows(statianary_est[[1]]) %>% 
   mutate(state = rep(hmm5_km$stateNames, each = 101))
 
+# set colors
+colours.states <- c("#99DDB6", "#539D9C", "#312C66")
 
 # generate plot
 ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
   geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2) + 
-  geom_line(aes(col = state)) + 
-  scale_colour_manual(values=colours.states) +
-  scale_fill_manual(values=colours.states) +
+  geom_line(aes(col = state)) +
+  scale_colour_manual(values = colours.states) +
+  scale_fill_manual(values = colours.states) +
   ylab("State Probability") + 
   xlab("Prey Diversity") +
   theme_minimal()
 ```
-
-
 
 
 
@@ -683,9 +676,9 @@ Exploring the insight on the relationship between our seal and prey diversity is
 ps <- momentuHMM::plotStationary(hmm4_km, plotCI= TRUE, return = TRUE)
 
 # grab values for data frame
-state1 <- ps$preydiv$'state 1' %>% mutate(state = 1)
-state2 <- ps$preydiv$'state 2' %>% mutate(state = 2)
-state3 <- ps$preydiv$'state 3' %>% mutate(state = 3)
+state1 <- ps$preydiv$'Slow movement' %>% mutate(state = 1)
+state2 <- ps$preydiv$'Moderate movement' %>% mutate(state = 2)
+state3 <- ps$preydiv$'Fast movement' %>% mutate(state = 3)
 
 # bind to one data frame
 pdat <- rbind(state1, state2, state3) %>%
@@ -693,7 +686,8 @@ pdat <- rbind(state1, state2, state3) %>%
 ```
 
 Visualize results.
-```{r hmm stationary plot, fig.show='hide'}
+
+```{r hmm stationary plot}
 # plot
 line_hmm <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
@@ -897,9 +891,9 @@ We will first estimate the stationary state probabilities of each state based on
 # grab estimated stationary state probabilities from our fitted HMM
 x <- as.data.frame(momentuHMM::stationary(hmm4_km, 
                    data.frame(preydiv = newfish$preydiv)))
-newfish$hmm_state1 <- x$state.1
-newfish$hmm_state2 <- x$state.2
-newfish$hmm_state3 <- x$state.3
+newfish$hmm_state1 <- x$Slow.movement
+newfish$hmm_state2 <- x$Moderate.movement
+newfish$hmm_state3 <- x$Fast.movement
 ```
 
 Format the data for plotting.

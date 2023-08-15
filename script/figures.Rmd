@@ -161,7 +161,7 @@ fig5c <- line_hmm +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
   ggtitle("C)") +
   theme(legend.position = c(0.36, 0.84)) +
-  ylab("\nStationary state probabilities") 
+  ylab("\nState probabilities") 
 
 tiff(file = "figures/asus_fig5.tiff", units="in", width=10, height=4, res=500)
 plot_grid(fig5a, fig5b, fig5c, ncol = 3)
@@ -434,6 +434,26 @@ figS2b <- fishmap +
 
 tiff(file = "figures/asus_figS2.tiff", units="in", width=10, height = 4.5, res=500)
 plot_grid(figS2a, figS2b, ncol = 2)
+dev.off()
+```
+
+# Fig. S3
+```{r}
+# generate plot
+figS3 <- ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
+  geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2) + 
+  geom_line(aes(col = state)) + 
+  scale_colour_manual(values=colours.states, breaks = c("Slow movement", "Moderate movement", "Fast movement"), labels=c("Slow movement", "Moderate movement", "Fast movement")) +
+  scale_fill_manual(values=colours.states, breaks = c("Slow movement", "Moderate movement", "Fast movement"), labels=c("Slow movement", "Moderate movement", "Fast movement")) +
+  ylab("State Probability") + 
+  xlab("Prey Diversity") +
+  theme_minimal() +
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
+  ylab("\nState probabilities") 
+
+tiff(file = "figures/asus_figS3.tiff", units="in", width=6, height = 4.5, res=500)
+figS3
 dev.off()
 ```
 
