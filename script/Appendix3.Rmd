@@ -57,7 +57,7 @@ Next we load in the fish data, which contains the spatial distribution of prey d
 
 ```{r load fish}
 # load prey diversity data
-fish <- read.csv(here("data/preydiv.csv"))
+fish <- read.csv(here("data/fish.csv"))
 
 # rasterize prey diversity data
 fish_raster <- terra::rast(fish, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
@@ -458,7 +458,9 @@ hmm5_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
 Visualize the results.
 
 ```{r}
+
 plot(hmm5_km, ask = F, plotCI = TRUE)
+
 ```
 
 The plots show that as prey diversity increases, the step length mean and standard deviation appear to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement, though the standard deviation may decrease with prey diversity. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
@@ -468,6 +470,7 @@ There is no significant effect of prey diversity in turn angle concentration on 
 Last, there is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
 
 ```{r}
+
 statianary_est <- plotStationary(hmm5_km, plotCI = TRUE, return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
 
 # combine into long data.frame as required by ggplot
@@ -496,6 +499,7 @@ Here we are plotting a model's estimated relationship between the resource covar
 
 First, we prepare a dataframe to predict on.
 ```{r prep fish}
+
 # prep the fish data
 newfish <- fish_raster %>%
   terra::as.data.frame(xy = TRUE) %>%
@@ -509,7 +513,9 @@ newfish <- fish_raster %>%
 Since the RSF does not incorporate movement, we will calculate the log-RSS of the movement-free habitat selection kernel. This is easily done using `log_rss()` from `amt`.
 
 First, we make a base dataframe to create x1 and x2 from. The values of `log_sl` and `cos_ta` do not matter, but we need populated columns in order for the `log_rss` function to work.
+
 ```{r rsf log-rss prep}
+
 base <- newfish %>% 
   mutate(log_sl = log(45),
          cos_ta = cos(1))
@@ -522,12 +528,16 @@ x1 <- base
 
 Next, we modify the base data frame, where prey diversity is held at its mean
 ```{r rsf log-rss set constant}
+
 x2 <- base  %>% 
   mutate(preydiv = mean(base$preydiv))
+
 ```
 
 Now we will apply `log_rss()` to each row. Since `log_rss()` only assessed one location relative to a reference point, we will use lapply to iterate through all locations.
+
 ```{r rsf log-rss}
+
 log_rss_list <- lapply(1:nrow(x1), function(i) {
   # Calculate log-RSS for that row
   xx <- log_rss(rsf1, x1[i,], x2[i,], ci = "se")
@@ -537,10 +547,13 @@ log_rss_list <- lapply(1:nrow(x1), function(i) {
 
 # combine rows
 res1 <- dplyr::bind_rows(log_rss_list)
+
 ```
 
 Visualize results.
+
 ```{r rsf log-rss plot}
+
 # plot
 line_rsf <- ggplot(res1, aes(x = preydiv_x1, y = (log_rss))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
@@ -550,6 +563,7 @@ line_rsf <- ggplot(res1, aes(x = preydiv_x1, y = (log_rss))) +
   ylab("log-RSS") +
   theme_minimal()
 line_rsf
+
 ```
 
 We see a positive relationship between prey diversity and log-RSS, which suggests that our seal are more likely to be present in areas with higher prey diversity than areas with low prey diversity.
@@ -562,6 +576,7 @@ We can also calculate the log-RSS for our SSFs following the same workflow as fo
 First, we will calculate log-RSS for ssf1. Again, since `log_rss()` only assesses one location relative to a reference point, we will use lapply to iterate through all locations, and bind the rows together after so that we have a single data frame for plotting.
 
 ```{r ssf1 log-rss}
+
 ## log-RSS prediction for ssf1
 # apply log_rss() to each row
 log_rss_list <- lapply(1:nrow(x1), function(i) {
@@ -574,12 +589,13 @@ log_rss_list <- lapply(1:nrow(x1), function(i) {
 # combine rows
 res2 <- dplyr::bind_rows(log_rss_list) %>%
   mutate(Speed = "without int.")
+
 ```
 
 Visualize results.
 
 ```{r ssf1 log-rss plot}
-# plot
+
 line_ssf1 <- ggplot() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
   geom_line(data = res2, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed), size = 1, linetype = 3, color = "black") + 
@@ -588,6 +604,7 @@ line_ssf1 <- ggplot() +
   ylab("log-RSS") +
   theme_minimal()
 line_ssf1
+
 ```
 
 We see no relationship between prey diversity and log-RSS, which suggests that our seal is similarily likely to be present in areas with higher prey diversity and areas with low prey diversity.
@@ -595,7 +612,7 @@ We see no relationship between prey diversity and log-RSS, which suggests that o
 Now we will calculate log-RSS for ssf2. We will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. First, identify what the percentiles are.
 
 ```{r ssf2 log-rss prep}
-## log-RSS prediction for ssf2
+
 # determine the 25th (slow), 50th (moderate), and 75th (fast) percentiles of step-length
 nums <- seal %>%
   make_track(lon, lat, date) %>%
@@ -610,6 +627,7 @@ nums
 Now apply log-RSS to each row, for each speed (step length percentile).
 
 ```{r ssf2 log-rss}
+
 # set-up to run function for each speed
 results_ssf2 <- lapply(nums, function(j) {
 x1$log_sl <- j
@@ -630,18 +648,19 @@ x1$log_sl <- j
 Bind the output together, and name the step lengths based on how long they are, so that we can interpret them in the subsequent plot as different speeds.
 
 ```{r ssf2 log-rss bind}
-# bind rows of all speed's prediction
+
 results_ssf2 <- dplyr::bind_rows(results_ssf2) %>%
   mutate(log_sl_x1 = as.factor(round(log_sl_x1,1)),
          Speed = dplyr::case_when(as.factor(log_sl_x1) == '8.4' ~ "Slow",
                                   as.factor(log_sl_x1) == "9.2" ~ "Moderate",
                                   as.factor(log_sl_x1) == "9.6" ~ "Fast"))
+
 ```
 
 Visualize results.
 
 ```{r ssf2 log-rss plot}
-# plot
+
 line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
   geom_line(size = 1, aes(color = Speed, group = Speed, linetype = Speed)) +
@@ -653,6 +672,7 @@ line_ssf2 <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   ylab("log-RSS") +
   theme_minimal()
 line_ssf2
+
 ```
 
 We can see a weak positive relationship between prey diversity and log-RSS, however, with confidence intervals (shading) covering zero, suggesting no significant relationship between prey diversity and log-RSS. We also see that the confidence intervals cover each other, suggesting that different speeds do not have different relationships between prey diversity and log-RSS.
@@ -660,7 +680,7 @@ We can see a weak positive relationship between prey diversity and log-RSS, howe
 Typically these models would be interpreted independently. But it's worth noting that while the effects are minimal and the confidence intervals overlap, when comparing ssf1 and ssf2, ssf2 provides more information about the animal's relationship with prey diversity.
 
 ```{r ssf 1 and 2 log-rss plot, message = 'false'}
-# Plot
+
 ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
   geom_line(size = 1, aes(color = Speed, group = Speed, linetype = Speed)) +
@@ -682,6 +702,7 @@ ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
                      name = "Speed") 
   
 ```
+
 Here, we see that adding the interaction between prey diversity and step length did not better explain our data or provide additional ecological insight about our seal.
 
 ## HMM
@@ -689,6 +710,7 @@ Here, we see that adding the interaction between prey diversity and step length 
 Exploring the insight on the relationship between our seal and prey diversity is fundamentally different for the HMM. Here, we will grab and plot the stationary state probabilities. This is easily done using `plotStationary()` from `momentuHMM`.
 
 ```{r hmm grab stationaries, fig.show='hide'}
+
 # grab stationary probabilities
 ps <- momentuHMM::plotStationary(hmm4_km, plotCI= TRUE, return = TRUE)
 
@@ -700,12 +722,13 @@ state3 <- ps$preydiv$'Fast movement' %>% mutate(state = 3)
 # bind to one data frame
 pdat <- rbind(state1, state2, state3) %>%
   mutate(state = as.character(state))
+
 ```
 
 Visualize results.
 
 ```{r hmm stationary plot}
-# plot
+
 line_hmm <- ggplot() + 
   geom_line(data = pdat, aes(x = cov, y = est, color = state)) +
   geom_ribbon(data = pdat, aes(x=cov, y=est, ymax=est+se, ymin=est-se, fill = state), 
@@ -734,28 +757,32 @@ Now we will estimate the utilization distributions from each model to demonstrat
 
 We can predict the estimated probability of use from the RSF by hand. First, grab the model coefficients and predict for each cell.
 ```{r rsf prediction}
+
 # grab model coefficients
 modcoef <- summary(rsf1)$coef
 
 # prediction for each cell
 x <- exp(modcoef[2] * newfish$preydiv)
+
 ```
 
 We will normalize the results next.
 ```{r rsf prediction normalization}
+
 # range fn
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 # set the range from zero to one
 newfish$rsf_prediction <- range01(x)
+
 ```
 
 Visualize results.
 ```{r rsf prediction map}
-# plot
+
 map_rsf <- ggplot() + 
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "RSF prediction",limits = c(0,0.14)) +
+  scale_fill_viridis(option = "mako", name = "RSF prediction",limits = c(0,1)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
@@ -799,7 +826,6 @@ We can also set constants for how many steps we want to simulate. Additionally, 
 ```{r ssf1 set constants}
 
 n_steps = 1e4 # number of steps
-n_steps1 = n_steps + 1 # number of steps + 1
 burnin <- n_steps/50 # number of steps to remove for the burn-in
 
 ```
@@ -828,7 +854,7 @@ p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
 
 Remove the burn-in.
 
-```{r ssf1 set start}
+```{r ssf1 remove burnin}
 
 p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
 
@@ -836,7 +862,7 @@ p1_burnt <- p1 %>% dplyr::slice(-c(1:burnin))
 
 Visualize the simulated path.
 
-```{r ssf1 set start}
+```{r ssf1 plot simulation}
 
 ssf_track_1 <- fishmap +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
@@ -850,15 +876,17 @@ ssf_track_1
 
 We will use this track to estimate the SSUD. We will convert the estimated SSUD to a data frame for easy plotting.
 
-```{r ssf1 ssud plot}
-uds_ssf1 <- tibble(rep = 1:n_steps1, 
-    x_ = p1$x_, y_ = p1$y_,
-    t_ = p1$t_, dt = p1$dt) |> 
-  filter(!is.na(x_)) |> 
-  make_track(x_, y_) |> 
+```{r ssf1 ssud plot prep}
+
+uds_ssf1 <- tibble(rep = 1:nrow(p1_burnt), 
+    x_ = p1_burnt$x_, y_ = p1_burnt$y_,
+    t_ = p1_burnt$t_, dt = p1_burnt$dt) %>%
+  filter(!is.na(x_)) %>%
+  make_track(x_, y_) %>% 
   hr_kde(trast = fish_raster, which_min = "global") %>%
   hr_ud() %>% 
   terra::as.data.frame(xy = TRUE)
+
 ```
 
 Visualize the results.
@@ -877,32 +905,50 @@ map_ssf1
 
 The map shows that probability of use is fairly generally distributed in space.
 
-
 We will follow the same steps to generate a SSUD for the SSF that allows prey diversity to affect the movement kernel.
 
 ```{r ssf2 refit}
-m2 <- data_ssf |> 
+
+m2 <- data_ssf %>%
   fit_clogit(case_ ~ preydiv_end * log(sl_) + cos(ta_) + 
                strata(step_id_))
 
+```
 
-# generate redistribution kernel
+Generate the redistribution kernel. 
+
+```{r ssf2 redistribution kernel}
+
 set.seed(2023)
 k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
                             stochastic = TRUE,
                             tolerance.outside = 1,
                             n.control = n_steps)
 
-# simulate path
+```
+
+Simulate the path. Similar to SSF1, this function may take some time to run. I have stored the simulated path with 1e5 locations in `data/p2_1e4`, or for the full simulation, `data/p2_1e5`, for loading in here if you prefer not to run it on your own computer.
+
+```{r ssf2 simulation}
+
 set.seed(2023)
-p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE) # this takes about five minutes. We have saved the simulated path to the data folder in the repo; feel free to load it here :)
-#p1 <- read.csv(here("data/p1.csv")) %>% as_tibble()
+p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE) 
+#p2 <- read.csv(here("data/p2_1e4.csv")) %>% as_tibble()
 
+```
 
-# burn-in
+Remove burn-in. 
+
+```{r ssf2 burnin}
+
 p2_burnt <- p2 %>% dplyr::slice(-c(1:burnin))
 
-# plot simulated track
+```
+
+Visualize simulated track. 
+
+```{r ssf2 plot track}
+
 ssf_track_2 <- fishmap +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61) +
@@ -911,52 +957,67 @@ ssf_track_2 <- fishmap +
   theme_void()
 ssf_track_2
 
+```
 
-# estimate SSUD
-uds_ssf2 <- tibble(rep = 1:n_steps1, 
-    x_ = p2$x_, y_ = p2$y_,
-    t_ = p2$t_, dt = p2$dt) |> 
+Estimate the SSUD. 
+
+```{r ssf2 estimate SSUD}
+
+uds_ssf2 <- tibble(rep = 1:nrow(p2_burnt), 
+    x_ = p2_burnt$x_, y_ = p2_burnt$y_,
+    t_ = p2_burnt$t_, dt = p2_burnt$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
   hr_kde(trast = fish_raster, which_min = "global") %>%
   hr_ud() %>% 
   terra::as.data.frame(xy = TRUE)
 
-# plot SSUD
+```
+
+Visualize the SSUD. 
+
+```{r ssf2 plot SSUD}
+
 map_ssf2 <- ggplot() + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "SSF1 prediction") +
+  scale_fill_viridis(option = "mako", name = "SSF2 prediction") +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme_void()
 map_ssf2
+
 ```
 
 ## HMM
 
 We will first estimate the stationary state probabilities of each state based on prey diversity. This is easily done using the `momentuHMM` function `stationary()`. This function predicts the probability of being in each state given a covariate (prey diversity).
+
 ```{r hmm prediction for map}
-# grab estimated stationary state probabilities from our fitted HMM
+
 x <- as.data.frame(momentuHMM::stationary(hmm4_km, 
                    data.frame(preydiv = newfish$preydiv)))
 newfish$hmm_state1 <- x$Slow.movement
 newfish$hmm_state2 <- x$Moderate.movement
 newfish$hmm_state3 <- x$Fast.movement
+
 ```
 
 Format the data for plotting.
+
 ```{r hmm prediction data format}
-# prepare data
+
 newfish_long <- newfish %>%
   tidyr::pivot_longer(cols = hmm_state1:hmm_state3, 
                names_to = "model", values_to = "prediction") %>%
   mutate(dplyr::across(model, factor, levels=
                c("hmm_state1", "hmm_state2", "hmm_state3")))
+
 ```
 
 Visualize the results.
+
 ```{r hmm prediction plot}
-# plot
+
 map_hmm <- ggplot() + 
   geom_tile(data = newfish_long, aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1)) +
@@ -969,6 +1030,7 @@ map_hmm <- ggplot() +
   theme_void()
 
 map_hmm
+
 ```
 
 We can see that the slow movement state, which was positively related to prey diversity, showed a similar restricted spatial pattern to the RSF, whereas the moderate movement state, which had a negative relationship with prey diversity, showed the opposite pattern to the RSF prediction map. The fast movement state did not show as much spatial variation, due to its non significant relationship with prey diversity.
