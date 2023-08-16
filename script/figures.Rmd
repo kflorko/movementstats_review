@@ -123,7 +123,8 @@ dev.off()
 # Fig. 5
 ```{r}
 res_both <- dplyr::bind_rows(res1 %>% mutate(Model = "RSF"),
-                      res2 %>% mutate(Model = "SSF"))
+                      res2 %>% mutate(Model = "SSF")) %>%
+  mutate(Model = as.factor(Model))
 
 fig5a <- ggplot() + theme_minimal() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
@@ -145,8 +146,8 @@ fig5b <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray")  +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.5) +
   geom_line(size = 1, aes(color = Speed, group = Speed)) +
-  scale_fill_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast'), labels = c('Slow', 'Moderate', 'Fast')) +
-  scale_color_viridis_d(option="rocket", breaks=c('slow', 'moderate', 'fast'), labels = c('Slow', 'Moderate', 'Fast')) +
+  scale_fill_viridis_d(option="rocket", breaks=c('Slow', 'Moderate', 'Fast'), labels = c('Slow', 'Moderate', 'Fast')) +
+  scale_color_viridis_d(option="rocket", breaks=c('Slow', 'Moderate', 'Fast'), labels = c('Slow', 'Moderate', 'Fast')) +
   xlab("Prey diversity") +
   ylab("\nlog-RSS") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
@@ -173,8 +174,8 @@ dev.off()
 fig6a <- p1 +
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
   scale_fill_viridis(option = "mako", name = "Predicted\nprobability", limits = c(0, 1), breaks = c(0.0, 0.5, 1)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
@@ -191,8 +192,8 @@ fig6a <- p1 +
 fig6b <- p1 + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "Predicted\nprobability", breaks = c(0,0.01,0.02)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
@@ -208,8 +209,8 @@ fig6b <- p1 +
 fig6c <- p1 + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "Predicted\nprobability", breaks = c(0,0.01,0.02)) +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
@@ -229,13 +230,13 @@ fig6d <- p1 +
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
   labs(fill = 'Predicted\nprobability') +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("D) HMM state: Localized search") +
+  ggtitle("D) HMM state: Slow movement") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -248,13 +249,13 @@ fig6e <- p1 +
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
   labs(fill = 'Predicted\nprobability') +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("E) HMM state: Area-restricted search") +
+  ggtitle("E) HMM state: Moderate movement") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -267,13 +268,13 @@ fig6f <- p1 +
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
   labs(fill = 'Predicted\nprobability') +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), colour = "white", fill = "grey90", size = 0.3) +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("F) HMM state: Travelling") +
+  ggtitle("F) HMM state: Fast movement") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -442,7 +443,7 @@ dev.off()
 # generate plot
 figS3 <- ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
   geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2) + 
-  geom_line(aes(col = state)) + 
+  geom_line(aes(col = state), size = 1.5) + 
   scale_colour_manual(values=colours.states, breaks = c("Slow movement", "Moderate movement", "Fast movement"), labels=c("Slow movement", "Moderate movement", "Fast movement")) +
   scale_fill_manual(values=colours.states, breaks = c("Slow movement", "Moderate movement", "Fast movement"), labels=c("Slow movement", "Moderate movement", "Fast movement")) +
   ylab("State Probability") + 

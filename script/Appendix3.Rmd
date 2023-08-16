@@ -10,10 +10,10 @@ output:
     number_sections: yes
     theme: united
     highlight: tango
-  pdf_document:
+  word_document:
     toc: yes
     toc_depth: '3'
-  word_document:
+  pdf_document:
     toc: yes
     toc_depth: '3'
 ---
@@ -417,7 +417,7 @@ For code to recreate the more polished figures in the paper, please refer to the
 
 ## HMM - Allowing prey diversity to affect the emission probability
 
-Here we allow prey diversity to influence the step length in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
+Here we allow prey diversity to influence the step length and turning angle in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
 
 First we define the formulas.
 
