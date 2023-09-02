@@ -27,7 +27,7 @@ p1 <- ggplot() + theme_minimal() +
         axis.title.x = element_blank(),
         axis.line = element_blank(),
         axis.ticks = element_blank(),
-        text = element_text(size=12),
+        text = element_text(size=14),
         strip.background = element_rect(colour = "white"),
         legend.position = c(0.86, 0.82), 
         legend.direction = "vertical", 
@@ -38,17 +38,17 @@ p1 <- ggplot() + theme_minimal() +
 # Fig. 4
 ```{r}
 fig4a <- p1 + 
-  geom_tile(data = fish, aes(x = lon, y = lat, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), breaks = c(0.5, 0.62, 0.75)) +
-  labs(fill = 'Prey\ndiversity') +
-  geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
+  tidyterra::geom_spatraster(data = fish_raster) +
+  scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), breaks = c(0.5,0.6,0.7), name = "Prey\ndiversity") +
+   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   geom_point(data=seal, aes(x=lon, y=lat), size=1.75, alpha = 0.6, color = "#FCEEAE") + 
   geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
-        legend.position = c(0.80, 0.89)) +
+        legend.position = c(0.85, 0.86),
+        text=element_text(size=16)) +
   ggtitle("A) Seal track") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
@@ -57,23 +57,26 @@ fig4a <- p1 +
          title.hjust = 0.5), 
          size = guide_legend(title.position="top", title.hjust = 0.5))
 
-data_hmm$state <- as.factor(momentuHMM::viterbi(hmm4_km))
+data_hmm$state <- as.factor(momentuHMM::viterbi(hmm5_km))
+# make sure data_hmm is the UTM version
+
 fig4b <- p1 +
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
   geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
   geom_point(data=data_hmm, aes(x=x, y=y, color = state, shape = state), size=2, alpha = 0.8) + 
   scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), 
-                     labels = c("Slow movement", "Moderate movement", "Fast movement"), 
+                     labels = c("Slow", "Moderate", "Fast"), 
                      name = "HMM state") +
   scale_shape_manual(values = c(15, 16, 17), 
-                     labels=c("Slow movement", "Moderate movement", "Fast movement"), 
+                     labels=c("Slow", "Moderate", "Fast"), 
                      name = "HMM state") +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "vertical",
-        legend.position = c(0.3, 0.1)) +
+        legend.position = c(0.2, 0.15),
+        text=element_text(size=16)) +
   ggtitle("B) HMM decoded states") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
@@ -84,13 +87,14 @@ fig4b <- p1 +
 
 
 fig4c <- p1 + 
-  geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   geom_point(data=data_rsf, aes(x=x_, y=y_, color = case_), alpha = 0.8) +
   geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
   scale_color_manual(values = c("#F1A97A", "#5B207C"), 
-                     label = c("Available", "Observed"), name = "Data type") +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
-  theme(legend.position = c(0.80, 0.89)) +
+                     label = c("Available", "Observed"), name = "   Data type") +
+  theme(legend.position = c(0.80, 0.89),
+        text=element_text(size=16)) +
   ggtitle("C) RSF samples") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
@@ -99,14 +103,22 @@ fig4c <- p1 +
          title.hjust = 0.5), 
          size = guide_legend(title.position="top", title.hjust = 0.5)) 
 
+# make sure used points are on top of available points for viz
+data_ssf <- data_ssf %>%
+  mutate(case_ = factor(case_, levels = c("FALSE", "TRUE"))) 
+
 fig4d <- p1 + 
   geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.8) +
+  geom_point(data=data_ssf %>% filter(case_ == "TRUE"), aes(x=x2_, y=y2_), alpha = 0.8, color = "#5B207C") +
   geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
   scale_color_manual(values = c("#F1A97A", "#5B207C"), 
-                     label = c("Available", "Observed"), name = "Data type") +
-  geom_polygon(data = nat_trans, aes(x=long, y=lat, group=group), colour = "white", fill = "grey90", size = 0.3) +
-  coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) +
-  theme(legend.position = c(0.80, 0.89)) +
+                     label = c("Available", "Observed"), 
+                     breaks = c("FALSE", "TRUE"),
+                     name = "   Data type") +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
+  theme(legend.position = c(0.80, 0.89),
+        text=element_text(size=16)) +
   ggtitle("D) SSF samples") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
@@ -137,7 +149,7 @@ fig5a <- ggplot() + theme_minimal() +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
   ggtitle("A)") +
-  theme(legend.position = c(0.15, 0.88)) +
+  theme(legend.position = c(0.19, 0.9), text = element_text(size=14)) +
   xlim(0.55, 0.70) +
   ylim(-2.5, 2.5)
 
@@ -153,7 +165,7 @@ fig5b <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
   ggtitle("B)") +
-  theme(legend.position = c(0.2, 0.84)) +
+  theme(legend.position = c(0.25, 0.86), text = element_text(size=14)) +
   xlim(0.55, 0.70) +
   ylim(-2.5, 2.5)
 
@@ -161,7 +173,7 @@ fig5c <- line_hmm +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
   ggtitle("C)") +
-  theme(legend.position = c(0.36, 0.84)) +
+  theme(legend.position = c(0.42, 0.86), text = element_text(size=14)) +
   ylab("\nState probabilities") 
 
 tiff(file = "figures/asus_fig5.tiff", units="in", width=10, height=4, res=500)
@@ -342,7 +354,8 @@ figS1a <- ggplot() +
   theme_minimal() +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
-  ggtitle("A)")
+  ggtitle("A)") +
+  theme(text = element_text(size=14))
 
 
 
@@ -351,14 +364,14 @@ figS1a <- ggplot() +
 x <- seq(-pi, pi,length=1000)
 
 # get converged mean and concentration for each state 
-meanARS <- hmm2_km$mle$angle[1,1]  
-sdARS <- hmm2_km$mle$angle[2,1]    
+meanARS <- hmm4_km$mle$angle[1,1]  
+sdARS <- hmm4_km$mle$angle[2,1]    
 
-meanCR <- hmm2_km$mle$angle[1,2]    
-sdCR <- hmm2_km$mle$angle[2,2]  
+meanCR <- hmm4_km$mle$angle[1,2]    
+sdCR <- hmm4_km$mle$angle[2,2]  
 
-meanTR <- hmm2_km$mle$angle[1,3]    
-sdTR <- hmm2_km$mle$angle[2,3]  
+meanTR <- hmm4_km$mle$angle[1,3]    
+sdTR <- hmm4_km$mle$angle[2,3]  
 
 # get density functions of the distributions
 y_ARS <- CircStats::dvm(x, mu=meanARS,  kappa=sdARS) * stateFreq[[1]]
@@ -383,7 +396,8 @@ figS1b <- ggplot() +
   theme_minimal() +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
-  ggtitle("B)")
+  ggtitle("B)") +
+  theme(text = element_text(size=14))
 
 tiff(file = "figures/asus_figS1.tiff", units="in", width=6, height = 8, res=500)
 plot_grid(figS1a, figS1b, ncol = 1)

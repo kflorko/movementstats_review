@@ -399,6 +399,7 @@ We can view the parameters and regression coefficients for the transition probab
 ```{r print hmm4, message = FALSE}
 
 print(hmm4_km)
+hmm4_km$CIbeta
 
 ```
 
