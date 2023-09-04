@@ -350,7 +350,7 @@ We can see from the step-length histogram and the map that it doesn't look like 
 ```{r plot hmm2 pseudo-resid, warning=FALSE}
 plotPR(hmm2_km)
 ```
-We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. Therefore, we will try fitting a three-state HMM to see if this better captures those movements.
+We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. Therefore, we will try fitting a three-state HMM to see if this better captures those movements.
 
 Define starting parameters for a three-state HMM.
 
@@ -420,10 +420,10 @@ It's helpful to visualize the results for easier interpretation of the parameter
 ```{r plot hmm4, message = FALSE}
 
 plot(hmm4_km)
-
+plotPR(hmm4_km)
 ```
 
-We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states.
+We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states. Further, the pseudo-residual plot for step length looks much better, with the observed points in the Q-Q plot falling within the predicted Q-Q bands. As well, all the step length autocorrelation is below the blue line.
 
 For code to recreate the more polished figures in the paper, please refer to the script `figures.rmd`.
 
