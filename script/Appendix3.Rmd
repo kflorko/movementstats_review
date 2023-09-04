@@ -292,8 +292,6 @@ sigma0 <- c(3, 8) # sd step length for each state
 stepPar0 <- c(mu0, sigma0)
 kappa0 <- c(0.35, 0.5)  # turning angle for each state
 
-formula = ~ preydiv # identify covariates
-
 ```
 
 Fit the two-state HMM.
@@ -308,6 +306,14 @@ hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
+Define transition probability model.
+
+```{r define hmm2 TPM model, message = FALSE}
+
+formula = ~ preydiv # identify covariates
+
+```
+
 Retrieve parameters to refine the model.
 
 ```{r grab parameters hmm1, message = FALSE}
@@ -316,7 +322,7 @@ Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
 ```
 
-Fit a refined HMM with parameters from the initial two-state HMM.
+Fit a refined HMM with effect of prey diversity on transition probability using estimated parameters from the initial two-state HMM.
 
 ```{r fit hmm2, message = FALSE}
 
