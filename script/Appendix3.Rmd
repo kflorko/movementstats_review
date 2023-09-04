@@ -345,7 +345,12 @@ plot(hmm2_km)
 
 ```
 
-We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We will try fitting a three-state HMM to see if this better captures those movements.
+We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We can look at the pseudo-residuals of the model to confirm weather this is the case. 
+
+```{r plot hmm2 pseudo-resid, warning=FALSE}
+plotPR(hmm2_km)
+```
+We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. Therefore, we will try fitting a three-state HMM to see if this better captures those movements.
 
 Define starting parameters for a three-state HMM.
 
