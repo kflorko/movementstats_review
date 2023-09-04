@@ -366,8 +366,6 @@ sigma0 <- c(3, 5, 8) # sd step length for each state
 stepPar0 <- c(mu0, sigma0)
 kappa0 <- c(0.35, 0.55, 0.5)  # turning angle for each state
 
-formula = ~ preydiv # identify covariates
-
 ```
 
 Fit the three-state HMM.
@@ -382,9 +380,12 @@ hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
-Retrieve parameters to refine the model. 
+
+Define transition probability model, and retrieve parameters to refine the model. 
 
 ```{r grab parameters from hmm3, message = FALSE}
+
+formula = ~ preydiv # identify covariates
 
 Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
 
