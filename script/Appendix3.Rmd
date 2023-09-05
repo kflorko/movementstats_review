@@ -524,6 +524,34 @@ ggplot(statianary_est, aes(x = cov, y = est, fill = state)) +
   xlab("Prey Diversity") +
   theme_minimal()
 ```
+## HMM - Allowing prey diversity to affect the emission probability but not transition probability
+
+First we define the formulas.
+
+```{r define models for hmm6 emission probability}
+
+stepDM <- list(mean = distFormula, sd = distFormula) 
+angleDM <- list(concentration = distFormula) 
+DM <- list(step = stepDM, angle = angleDM)
+
+```
+
+Get initial parameter estimates based on hmm4_km.
+
+
+```{r get initial parameter estimates for hmm6 from hmm3}
+Par0_hmm6_km <- getPar0(hmm3_km, DM = DM)
+```
+
+Fit hmm.
+```{r fit hmm6}
+hmm6_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+                              stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
+                              dist=list(step=stepDist,angle=angleDist),
+                              Par0=Par0_hmm6_km$Par,
+                              DM = DM)
+```
+
 
 
 
