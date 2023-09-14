@@ -292,8 +292,6 @@ sigma0 <- c(3, 8) # sd step length for each state
 stepPar0 <- c(mu0, sigma0)
 kappa0 <- c(0.35, 0.5)  # turning angle for each state
 
-formula = ~ preydiv # identify covariates
-
 ```
 
 Fit the two-state HMM.
@@ -308,6 +306,14 @@ hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
+Define transition probability model.
+
+```{r define hmm2 TPM model, message = FALSE}
+
+formula = ~ preydiv # identify covariates
+
+```
+
 Retrieve parameters to refine the model.
 
 ```{r grab parameters hmm1, message = FALSE}
@@ -316,7 +322,16 @@ Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
 
 ```
 
-Fit a refined HMM with parameters from the initial two-state HMM.
+Note: when new covariates are added to using getPar0(), the intercept coefficients are taken from the previous model, while initial value for slope coefficients are set to 0. We can see this by comparing the estimated transition probability parameters from the previous model to the initial parameters prepared for the next model with covariates.
+
+```{r preview HMM2 Par0}
+# transition probability matrix (TPM) parameters from hmm1_km
+hmm1_km$mle$beta
+# initial parameters for hmm2_km with effect of preydiv on TPM
+Par0_hmm1_km$beta
+```
+
+Fit a refined HMM with effect of prey diversity on transition probability using estimated parameters from the initial two-state HMM.
 
 ```{r fit hmm2, message = FALSE}
 
@@ -339,7 +354,13 @@ plot(hmm2_km)
 
 ```
 
-We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We will try fitting a three-state HMM to see if this better captures those movements.
+We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We can look at the pseudo-residuals of the model to confirm weather this is the case. 
+
+```{r plot hmm2 pseudo-resid, warning=FALSE}
+plotPR(hmm2_km)
+```
+
+We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. Therefore, we will try fitting a three-state HMM to see if this better captures those movements.
 
 Define starting parameters for a three-state HMM.
 
@@ -355,8 +376,6 @@ sigma0 <- c(3, 5, 8) # sd step length for each state
 stepPar0 <- c(mu0, sigma0)
 kappa0 <- c(0.35, 0.55, 0.5)  # turning angle for each state
 
-formula = ~ preydiv # identify covariates
-
 ```
 
 Fit the three-state HMM.
@@ -371,9 +390,12 @@ hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
-Retrieve parameters to refine the model. 
+
+Define transition probability model, and retrieve parameters to refine the model. 
 
 ```{r grab parameters from hmm3, message = FALSE}
+
+formula = ~ preydiv # identify covariates
 
 Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
 
@@ -408,10 +430,10 @@ It's helpful to visualize the results for easier interpretation of the parameter
 ```{r plot hmm4, message = FALSE}
 
 plot(hmm4_km)
-
+plotPR(hmm4_km)
 ```
 
-We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states.
+We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states. Further, the pseudo-residual plot for step length looks much better, with the observed points in the Q-Q plot falling within the predicted Q-Q bands. As well, all the step length autocorrelation is below the blue line.
 
 For code to recreate the more polished figures in the paper, please refer to the script `figures.rmd`.
 
@@ -431,12 +453,23 @@ DM <- list(step = stepDM, angle = angleDM)
 
 ```
 
-Next we grab the parameters from our refined three-state HMM.
+Next we grab the parameters from our refined three-state HMM and update the model to include a design matrix (DM) for effects of covariates on distributions. 
 
 ```{r grab parameters for hmm emission probability}
 
 Par0_hmm5_km <- momentuHMM::getPar0(hmm4_km, DM = DM)
 
+```
+
+Just as when we added covariates to the transition probability, when adding new covariates to emission probabilities using getPar0(), the intercept coefficients are taken from the previous model and initial slope coefficients are set to 0. We can see this by comparing the previously estimated parameters to the initial parameters for the next model with covariates. Note that when DM is not included in the model, `momentuHMM` assumes initial parameters are on the natural scale (i.e., on the scale of how observations are measured). However, when DM is included, then initial parameters must be provided on the working scale (i.e., the scale in which the optimization occurs, between negative and positive infinity). To convert working-scale parameters to the natural scale, we must apply the inverse of the link function associated with that parameter (Table 2 in the vignette for `momentuHMM`). In the case of mean and standard deviation associated with the gamma distribution used for step length, the link function is `log()`, therefore we must apply `exp()` to convert the working scale parameters returned by `getPar0()` to the natural scale.
+
+```{r preview HMM5 Par0}
+# transition probability matrix (TPM) parameters from hmm1_km 
+# 'natural scale'
+hmm4_km$mle$step
+# initial parameters for hmm2_km with effect of preydiv on TPM
+# working scale converted to natural scale using inverse of link function
+exp(Par0_hmm5_km$Par$step)
 ```
 
 Fit the model.
@@ -491,6 +524,34 @@ ggplot(statianary_est, aes(x = cov, y = est, fill = state)) +
   xlab("Prey Diversity") +
   theme_minimal()
 ```
+## HMM - Allowing prey diversity to affect the emission probability but not transition probability
+
+First we define the formulas.
+
+```{r define models for hmm6 emission probability}
+
+stepDM <- list(mean = distFormula, sd = distFormula) 
+angleDM <- list(concentration = distFormula) 
+DM <- list(step = stepDM, angle = angleDM)
+
+```
+
+Get initial parameter estimates based on hmm4_km.
+
+
+```{r get initial parameter estimates for hmm6 from hmm3}
+Par0_hmm6_km <- getPar0(hmm3_km, DM = DM)
+```
+
+Fit hmm.
+```{r fit hmm6}
+hmm6_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+                              stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
+                              dist=list(step=stepDist,angle=angleDist),
+                              Par0=Par0_hmm6_km$Par,
+                              DM = DM)
+```
+
 
 
 
