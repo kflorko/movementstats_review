@@ -251,7 +251,6 @@ Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018).
 
 This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the emission probability. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
 
-*MAM: you need to break this down and explain the steps. I would include the two-state HMM that you fitted and show how you decided that it should be 3 states. Also, really you'd want to have it in km in the first time. The HMM is mostly dividing the state based on speed, so km would make more sense. This also means that the SSF would make more sense in KM. I would do the KM transformation above (I thought that's what you were doing with you projection, and do all analysis in km).*
 
 ```{r prep hmm data , message = FALSE}
 
@@ -524,6 +523,7 @@ ggplot(statianary_est, aes(x = cov, y = est, fill = state)) +
   xlab("Prey Diversity") +
   theme_minimal()
 ```
+
 ## HMM - Allowing prey diversity to affect the emission probability but not transition probability
 
 First we define the formulas.
