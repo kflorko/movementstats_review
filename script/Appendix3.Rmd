@@ -3,9 +3,6 @@ title: "A comparison of statistical models used to characterize species-habitat 
 author: "Katie Florko"
 date: "31/07/2023"
 output:
-  word_document:
-    toc: yes
-    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
@@ -13,6 +10,9 @@ output:
     number_sections: yes
     theme: united
     highlight: tango
+  word_document:
+    toc: yes
+    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: '3'
