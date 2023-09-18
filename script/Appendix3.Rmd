@@ -3,6 +3,9 @@ title: "A comparison of statistical models used to characterize species-habitat 
 author: "Katie Florko"
 date: "31/07/2023"
 output:
+  word_document:
+    toc: yes
+    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
@@ -10,9 +13,6 @@ output:
     number_sections: yes
     theme: united
     highlight: tango
-  word_document:
-    toc: yes
-    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: '3'
@@ -579,7 +579,7 @@ First, we make a base dataframe to create x1 and x2 from. The values of `log_sl`
 ```{r rsf log-rss prep}
 
 base <- newfish %>% 
-  mutate(log_sl = log(45),
+  mutate(log_sl = mean(data_ssf$log_sl),
          cos_ta = cos(1))
 
 # x1 is our base dataframe
@@ -588,7 +588,8 @@ x1 <- base
 ```
 
 
-Next, we modify the base data frame, where prey diversity is held at its mean
+Next, we modify the base data frame, where prey diversity is held at its mean.
+
 ```{r rsf log-rss set constant}
 
 x2 <- base  %>% 
@@ -628,7 +629,8 @@ line_rsf
 
 ```
 
-We see a positive relationship between prey diversity and log-RSS, which suggests that our seal are more likely to be present in areas with higher prey diversity than areas with low prey diversity.
+We see a positive relationship between prey diversity and log-RSS, which suggests that our seal are more likely to be present in areas with higher prey diversity than areas with low prey diversity. Note the bowtie shape of the standard error is due to log-RSS calculating selection strength relative to a starting step, in this case, where prey diversity is set to its mean.
+
 
 
 ## SSF
@@ -683,7 +685,6 @@ nums <- seal %>%
   dplyr::reframe(quants = quantile(log_sl, c(0.25, 0.5, 0.75))) %>%
   pull()
 
-nums
 ```
 
 Now apply log-RSS to each row, for each speed (step length percentile).
