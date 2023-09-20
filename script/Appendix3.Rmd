@@ -245,7 +245,9 @@ summary(ssf2)
 
 Similar to ssf1, we don't see any significant relationships. Note that we also included a term for preydiv*log_sl. Since we have this interaction, preydiv and log_sl can not be interpreted indepently, thus we interpret the interaction. The interaction is not signficant, so this model does not suggest that prey diversity affects the movement speed of our ringed seal.
 
-## HMM - Allowing prey diversity to affect the state transition probability
+## HMM
+
+### 2-state HMMs
 
 Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. We will first fit a two-state model.
 
@@ -276,6 +278,8 @@ data_hmm <- momentuHMM::prepData(data_hmm, coordNames = c("long", "lat"), type =
 
 ```
 
+#### Basic 2-state HMM
+
 Define the starting parameters.
 
 ```{r define starting parameters hmm1, message = FALSE}
@@ -286,11 +290,10 @@ stepDist <- "gamma" # step distribution
 angleDist <- "vm" # turning angle distribution
 dist <- list(step=stepDist,angle=angleDist)
 
-mu0 <- c(5, 38) # mean step length for each state
-sigma0 <- c(3, 8) # sd step length for each state
+mu0 <- c(8, 38) # mean step length for each state
+sigma0 <- c(8, 8) # sd step length for each state
 stepPar0 <- c(mu0, sigma0)
-kappa0 <- c(0.35, 0.5)  # turning angle for each state
-
+kappa0 <- c(0.35, 0.35)  # turning angle for each state
 ```
 
 Fit the two-state HMM.
@@ -301,14 +304,18 @@ set.seed(2023)
 hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             stateNames = c("Slow movement", "Moderate movement"),
             dist=dist,
-            Par0=list(step=stepPar0,angle=kappa0))
-
+            Par0=list(step=stepPar0,angle=kappa0),
+            retryFits = 2, retrySD = 3)
+AIC(hmm1_km)
 ```
 
+#### 2-states with effects on transition probabilities
+
+Here, we will explore adding effect of covariates on transition probabilities. 
 Define transition probability model.
 
 ```{r define hmm2 TPM model, message = FALSE}
-
+AIC(hmm1_km)
 formula = ~ preydiv # identify covariates
 
 ```
@@ -348,9 +355,7 @@ hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
 Visualize the results.
 
 ```{r plot hmm2, message = FALSE}
-
 plot(hmm2_km)
-
 ```
 
 We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We can look at the pseudo-residuals of the model to confirm weather this is the case. 
@@ -359,9 +364,66 @@ We can see from the step-length histogram and the map that it doesn't look like 
 plotPR(hmm2_km)
 ```
 
-We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. Therefore, we will try fitting a three-state HMM to see if this better captures those movements.
+We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. 
 
-Define starting parameters for a three-state HMM.
+The residuals may be due to a missing state or missing effect of covariates on observation process We will explore both of these. 
+
+#### 2-states with effects on emission probabilities
+
+First we define the functions for covariates on emission probabilities of step length mean and sd and turn angle concentration.
+
+```{r define parameters for hmm2b emission probability}
+distFormula <- ~ preydiv
+stepDM <- list(mean = distFormula, sd = distFormula)
+angleDM <- list(concentration = distFormula)
+DM <- list(step = stepDM, angle = angleDM)
+```
+
+Next we will define initial parameters for this model. Note, when including parameters on emission probabilities, initial parameters must be on the working scale (i.e., from negative to positive infinity). The following parameters were obtained from refitting the model with different starting parameters and using retryFits argument in fitHMM.
+
+```{r define initila pars for hmm emission probability}
+Par0_hmm2b_km <- list(step = c(7, -9, 
+                               8, -8,
+                               5, -6, 
+                               0.1, 3),
+                      angle = c(7, -14,
+                                3, -6))
+```
+
+Fit HMM.
+
+```{r fit hmm2b, message = FALSE}
+set.seed(2023)
+hmm2b_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
+            stateNames = c("Slow movement", "Fast movement"),
+            dist=list(step=stepDist,angle=angleDist),
+            Par0 = Par0_hmm2b_km,
+            DM = DM, 
+            retryFits = 2, retrySD = 3)
+```
+
+Visualize the results.
+
+```{r plot hmm2b, message = FALSE}
+plot(hmm2b_km, ask = F, plotCI = T)
+plotPR(hmm2b_km)
+```
+We see that when including covariates on a 2-state model, step length of both states decreases as preydiv increases. The mean step length of slow state varies from 12 to 4 with preydiv, while for the fast state, mean step length varies from 42 to 12. For both states, the turn angle concentration also decreases with prey div. In other words, as prey div increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. Very importantly, we see that the Q-Q plots are significantly improved, with most of the data falling within the quantile bands. However, the ACF plots are not noticeably better than previous models, suggesting there is still latent autocorrelation we are not capturing. 
+
+So long as observation data is the same, we can compare HMMs using AIC. However, it has been shown that AIC is strongly biased towards including additional states. Therefore, it is recommended when using AIC, to only compare models with the same number of states.
+
+```{r compare 2-state AIC models}
+AIC(hmm1_km, hmm2_km, hmm2b_km)
+```
+Here, we see that the top performing model based on AIC is including covariates on the emission probabilities, while there is an insignificant (delta AIC <2) difference between model without covariates and with covariates on transition probabilities. This suggests that there may be an effect of covariates on observation process that we should include in the final model.
+
+### 3-state HMMs 
+
+Next, we will explore adding a third state to the HMM. We start with a basic HMM without any covariates, then explore adding covariates to transition and emission probabilities.
+
+#### Basic 3-state HMM
+
+First, we define starting parameters for a three-state HMM.
 
 ```{r define starting parameters hmm3, message = FALSE}
 
@@ -389,6 +451,18 @@ hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
+Explore model
+
+```{r}
+plot(hmm3_km, ask = F)
+plotPR(hmm3_km)
+```
+The predicted state map seems to adequately capture slow, moderate, and fast movement. Importantly, both the Q-Q and ACF plots are significantly improved from previous 2-state models. Therefore, the remainder of our analysis will be built on the 3-state model.
+
+
+#### 3-states with effects on transition probabilities 
+
+Here, we will explore adding effects of covariates on the transition probabilities.
 
 Define transition probability model, and retrieve parameters to refine the model. 
 
@@ -427,7 +501,6 @@ hmm4_km$CIbeta
 It's helpful to visualize the results for easier interpretation of the parameters and regression coefficients.
 
 ```{r plot hmm4, message = FALSE}
-
 plot(hmm4_km)
 plotPR(hmm4_km)
 ```
@@ -437,7 +510,7 @@ We can see that this three-state HMM does much better than the two-state HMM. We
 For code to recreate the more polished figures in the paper, please refer to the script `figures.rmd`.
 
 
-## HMM - Allowing prey diversity to affect the emission probability
+#### 3-states with effects on transition and emission probabilities
 
 Here we allow prey diversity to influence the step length and turning angle in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
 
@@ -524,7 +597,7 @@ ggplot(statianary_est, aes(x = cov, y = est, fill = state)) +
   theme_minimal()
 ```
 
-## HMM - Allowing prey diversity to affect the emission probability but not transition probability
+#### 3-states with effects on emission probabilities
 
 First we define the formulas.
 
@@ -551,9 +624,22 @@ hmm6_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
                               Par0=Par0_hmm6_km$Par,
                               DM = DM)
 ```
+plot
+```{r}
+plot(hmm6_km, ask = F, plotCI = T)
+```
+plot stationary
+```{r}
+plotStationary(hmm6_km)
+```
 
+Last, we will compare the 3-state models using AIC:
 
+```{r compare 3-state AIC}
+AIC(hmm3_km, hmm4_km, hmm5_km, hmm6_km)
+```
 
+Based on the AIC values, the top model appears to be this final model, which includes effects of covariates on only the emission probability. 
 
 # Plots of predicted relationships with the covariate
 
