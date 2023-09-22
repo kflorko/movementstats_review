@@ -405,20 +405,10 @@ dev.off()
 
 ```
 
+
+
+
 # Fig. S2
-```{r}
-plot(hmm6_km, ask = F, plotCI = T, return = T)
-
-hmm6_km$mod
-
-getTrProbs(hmm6_km$m, getCI=TRUE)
-```
-
-
-
-
-
-# Fig. S3
 ```{r}
 #p1 <- read.csv("data/p1.csv", header = TRUE)
 #p2 <- read.csv("data/p2.csv", header = TRUE)
