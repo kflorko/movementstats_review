@@ -374,7 +374,7 @@ First we define the functions for covariates on emission probabilities of step l
 
 ```{r define parameters for hmm2b emission probability}
 distFormula <- ~ preydiv
-stepDM <- list(mean = distFormula, sd = distFormula)
+stepDM <- list(mean = distFormula, sd = ~ 1)
 angleDM <- list(concentration = distFormula)
 DM <- list(step = stepDM, angle = angleDM)
 ```
@@ -522,7 +522,7 @@ First we define the formulas.
 ```{r define parameters for hmm emission probability}
 
 distFormula <- ~ preydiv
-stepDM <- list(mean = distFormula, sd = distFormula) 
+stepDM <- list(mean = distFormula, sd = ~ 1) 
 angleDM <- list(concentration = distFormula) 
 DM <- list(step = stepDM, angle = angleDM)
 
