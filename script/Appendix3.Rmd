@@ -309,7 +309,7 @@ hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 AIC(hmm1_km)
 ```
 
-#### 2-states with effects on transition probabilities
+#### 2-states with covariate effects on transition probabilities
 
 Here, we will explore adding effect of covariates on transition probabilities. 
 Define transition probability model.
@@ -366,9 +366,9 @@ plotPR(hmm2_km)
 
 We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. 
 
-The residuals may be due to a missing state or missing effect of covariates on observation process We will explore both of these. 
+The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
 
-#### 2-states with effects on emission probabilities
+#### 2-states with covariate effects on emission probabilities
 
 First we define the functions for covariates on emission probabilities of step length mean and sd and turn angle concentration.
 
@@ -447,7 +447,8 @@ set.seed(2023)
 hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=list(step=stepPar0,angle=kappa0))
+            Par0=list(step=stepPar0,angle=kappa0),
+            retryFits = 10)
 
 ```
 
@@ -457,10 +458,11 @@ Explore model
 plot(hmm3_km, ask = F)
 plotPR(hmm3_km)
 ```
+
 The predicted state map seems to adequately capture slow, moderate, and fast movement. Importantly, both the Q-Q and ACF plots are significantly improved from previous 2-state models. Therefore, the remainder of our analysis will be built on the 3-state model.
 
 
-#### 3-states with effects on transition probabilities 
+#### 3-states with covariate effects on transition probabilities 
 
 Here, we will explore adding effects of covariates on the transition probabilities.
 
@@ -485,7 +487,8 @@ hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             Par0=Par0_hmm3_km$Par,
             delta0 = Par0_hmm3_km$delta, 
             beta0 = Par0_hmm3_km$beta,
-            formula=formula)
+            formula=formula,
+            retryFits = 10)
 
 ```
 
@@ -510,7 +513,7 @@ We can see that this three-state HMM does much better than the two-state HMM. We
 For code to recreate the more polished figures in the paper, please refer to the script `figures.rmd`.
 
 
-#### 3-states with effects on transition and emission probabilities
+#### 3-states with covariate effects on transition and emission probabilities
 
 Here we allow prey diversity to influence the step length and turning angle in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
 
@@ -597,13 +600,13 @@ ggplot(statianary_est, aes(x = cov, y = est, fill = state)) +
   theme_minimal()
 ```
 
-#### 3-states with effects on emission probabilities
+#### 3-states with covariate effects on emission probabilities
 
 First we define the formulas.
 
 ```{r define models for hmm6 emission probability}
 
-stepDM <- list(mean = distFormula, sd = distFormula) 
+stepDM <- list(mean = distFormula, sd = ~ 1) 
 angleDM <- list(concentration = distFormula) 
 DM <- list(step = stepDM, angle = angleDM)
 
@@ -624,13 +627,15 @@ hmm6_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
                               Par0=Par0_hmm6_km$Par,
                               DM = DM)
 ```
+
 plot
 ```{r}
 plot(hmm6_km, ask = F, plotCI = T)
 ```
-plot stationary
+
+View parameters
 ```{r}
-plotStationary(hmm6_km)
+hmm6_km$CIbeta
 ```
 
 Last, we will compare the 3-state models using AIC:
@@ -1219,3 +1224,5 @@ Signer, J., J. Fieberg, and T. Avgar. (2019). Animal movement tools (amt): R pac
 
 <div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
 
+# Session
+sessioninfo::session_info()
