@@ -1,7 +1,7 @@
 ---
 title: "A comparison of statistical models used to characterize species-habitat associations with movement data: Appendix 3"
 author: "Katie Florko"
-date: "31/07/2023"
+date: "22/09/2023"
 output:
   html_document:
     toc: yes
@@ -251,7 +251,7 @@ Similar to ssf1, we don't see any significant relationships. Note that we also i
 
 Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. We will first fit a two-state model.
 
-This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the emission probability. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
+This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the observation probabilities. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
 
 
 ```{r prep hmm data , message = FALSE}
@@ -298,15 +298,15 @@ kappa0 <- c(0.35, 0.35)  # turning angle for each state
 
 Fit the two-state HMM.
 
-```{r fit hmm1, message = FALSE}
+```{r fit hmm_trans_2, message = FALSE}
 
 set.seed(2023)
-hmm1_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+hmm_trans_2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             stateNames = c("Slow movement", "Moderate movement"),
             dist=dist,
             Par0=list(step=stepPar0,angle=kappa0),
             retryFits = 2, retrySD = 3)
-AIC(hmm1_km)
+
 ```
 
 #### 2-states with covariate effects on transition probabilities
@@ -314,75 +314,75 @@ AIC(hmm1_km)
 Here, we will explore adding effect of covariates on transition probabilities. 
 Define transition probability model.
 
-```{r define hmm2 TPM model, message = FALSE}
-AIC(hmm1_km)
+```{r define hmm_trans_2 TPM model, message = FALSE}
+
 formula = ~ preydiv # identify covariates
 
 ```
 
 Retrieve parameters to refine the model.
 
-```{r grab parameters hmm1, message = FALSE}
+```{r grab parameters hmm_trans_2, message = FALSE}
 
-Par0_hmm1_km <- momentuHMM::getPar0(hmm1_km, formula=formula)
+Par0_hmm_trans_2 <- momentuHMM::getPar0(hmm_trans_2, formula=formula)
 
 ```
 
 Note: when new covariates are added to using getPar0(), the intercept coefficients are taken from the previous model, while initial value for slope coefficients are set to 0. We can see this by comparing the estimated transition probability parameters from the previous model to the initial parameters prepared for the next model with covariates.
 
-```{r preview HMM2 Par0}
+```{r preview Par0_hmm_trans_2}
 # transition probability matrix (TPM) parameters from hmm1_km
-hmm1_km$mle$beta
+hmm_trans_2$mle$beta
 # initial parameters for hmm2_km with effect of preydiv on TPM
-Par0_hmm1_km$beta
+Par0_hmm_trans_2$beta
 ```
 
 Fit a refined HMM with effect of prey diversity on transition probability using estimated parameters from the initial two-state HMM.
 
-```{r fit hmm2, message = FALSE}
+```{r fit hmm_trans_2_refined, message = FALSE}
 
 set.seed(2023)
-hmm2_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
+hmm_trans_2_refined <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             stateNames = c("Slow movement", "Moderate movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm1_km$Par,
-            delta0 = Par0_hmm1_km$delta, 
-            beta0 = Par0_hmm1_km$beta,
+            Par0=Par0_hmm_trans_2$Par,
+            delta0 = Par0_hmm_trans_2$delta, 
+            beta0 = Par0_hmm_trans_2$beta,
             formula=formula)
 
 ```
 
 Visualize the results.
 
-```{r plot hmm2, message = FALSE}
-plot(hmm2_km)
+```{r plot hmm_trans_2_refined, message = FALSE}
+plot(hmm_trans_2_refined)
 ```
 
 We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We can look at the pseudo-residuals of the model to confirm weather this is the case. 
 
-```{r plot hmm2 pseudo-resid, warning=FALSE}
-plotPR(hmm2_km)
+```{r plot hmm_trans_2_refined pseudo-resid, warning=FALSE}
+plotPR(hmm_trans_2_refined)
 ```
 
 We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. 
 
 The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
 
-#### 2-states with covariate effects on emission probabilities
+#### 2-states with covariate effects on observation probabilities
 
-First we define the functions for covariates on emission probabilities of step length mean and sd and turn angle concentration.
+First we define the functions for covariates on observation probabilities of step length mean and turn angle concentration.
 
-```{r define parameters for hmm2b emission probability}
+```{r define parameters for hmm_obs_2}
 distFormula <- ~ preydiv
-stepDM <- list(mean = distFormula, sd = ~ 1)
+stepDM <- list(mean = distFormula, sd = distFormula)
 angleDM <- list(concentration = distFormula)
 DM <- list(step = stepDM, angle = angleDM)
 ```
 
-Next we will define initial parameters for this model. Note, when including parameters on emission probabilities, initial parameters must be on the working scale (i.e., from negative to positive infinity). The following parameters were obtained from refitting the model with different starting parameters and using retryFits argument in fitHMM.
+Next we will define initial parameters for this model. Note, when including parameters on observation probabilities, initial parameters must be on the working scale (i.e., from negative to positive infinity). The following parameters were obtained from refitting the model with different starting parameters and using retryFits argument in fitHMM.
 
-```{r define initila pars for hmm emission probability}
-Par0_hmm2b_km <- list(step = c(7, -9, 
+```{r define initila pars for hmm_obs_2 observation probability}
+Par0_hmm_obs_2 <- list(step = c(7, -9, 
                                8, -8,
                                5, -6, 
                                0.1, 3),
@@ -392,34 +392,30 @@ Par0_hmm2b_km <- list(step = c(7, -9,
 
 Fit HMM.
 
-```{r fit hmm2b, message = FALSE}
+```{r fit hmm_obs_2, message = FALSE}
 set.seed(2023)
-hmm2b_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
+hmm_obs_2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             stateNames = c("Slow movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0 = Par0_hmm2b_km,
+            Par0 = Par0_hmm_obs_2,
             DM = DM, 
             retryFits = 2, retrySD = 3)
 ```
 
 Visualize the results.
 
-```{r plot hmm2b, message = FALSE}
-plot(hmm2b_km, ask = F, plotCI = T)
-plotPR(hmm2b_km)
+```{r plot hmm_obs_2, message = FALSE}
+plot(hmm_obs_2, ask = F, plotCI = T)
+plotPR(hmm_obs_2)
 ```
-We see that when including covariates on a 2-state model, step length of both states decreases as preydiv increases. The mean step length of slow state varies from 12 to 4 with preydiv, while for the fast state, mean step length varies from 42 to 12. For both states, the turn angle concentration also decreases with prey div. In other words, as prey div increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. Very importantly, we see that the Q-Q plots are significantly improved, with most of the data falling within the quantile bands. However, the ACF plots are not noticeably better than previous models, suggesting there is still latent autocorrelation we are not capturing. 
 
-So long as observation data is the same, we can compare HMMs using AIC. However, it has been shown that AIC is strongly biased towards including additional states. Therefore, it is recommended when using AIC, to only compare models with the same number of states.
+We see that when including covariates on a 2-state model, step length of both states decreases as preydiv increases. The mean step length of slow state varies from 12 to 4 with preydiv, while for the fast state, mean step length varies from 42 to 12. For both states, the turn angle concentration also decreases with prey div. In other words, as prey diversity increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. Very importantly, we see that the Q-Q plots are significantly improved, with most of the data falling within the quantile bands. However, the ACF plots are not noticeably better than previous models, suggesting there is still latent autocorrelation we are not capturing. 
 
-```{r compare 2-state AIC models}
-AIC(hmm1_km, hmm2_km, hmm2b_km)
-```
-Here, we see that the top performing model based on AIC is including covariates on the emission probabilities, while there is an insignificant (delta AIC <2) difference between model without covariates and with covariates on transition probabilities. This suggests that there may be an effect of covariates on observation process that we should include in the final model.
+
 
 ### 3-state HMMs 
 
-Next, we will explore adding a third state to the HMM. We start with a basic HMM without any covariates, then explore adding covariates to transition and emission probabilities.
+Next, we will explore adding a third state to the HMM. We start with a basic HMM without any covariates, then explore adding covariates to transition and observation probabilities.
 
 #### Basic 3-state HMM
 
@@ -444,19 +440,18 @@ Fit the three-state HMM.
 ```{r fit hmm3, message = FALSE}
 
 set.seed(2023)
-hmm3_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
+hmm_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=list(step=stepPar0,angle=kappa0),
-            retryFits = 10)
+            Par0=list(step=stepPar0,angle=kappa0))
 
 ```
 
 Explore model
 
 ```{r}
-plot(hmm3_km, ask = F)
-plotPR(hmm3_km)
+plot(hmm_3, ask = F)
+plotPR(hmm_3)
 ```
 
 The predicted state map seems to adequately capture slow, moderate, and fast movement. Importantly, both the Q-Q and ACF plots are significantly improved from previous 2-state models. Therefore, the remainder of our analysis will be built on the 3-state model.
@@ -464,62 +459,87 @@ The predicted state map seems to adequately capture slow, moderate, and fast mov
 
 #### 3-states with covariate effects on transition probabilities 
 
-Here, we will explore adding effects of covariates on the transition probabilities.
+Here, we will explore adding effects of covariates on the transition probabilities. Note that this is the most typical application of covariates to HMM, and this model is the main model we focus on in the main paper.
 
-Define transition probability model, and retrieve parameters to refine the model. 
+First, define transition probability model, and retrieve parameters to refine the model. 
 
 ```{r grab parameters from hmm3, message = FALSE}
 
 formula = ~ preydiv # identify covariates
 
-Par0_hmm3_km <- momentuHMM::getPar0(hmm3_km, formula=formula)
+Par0_hmm3 <- momentuHMM::getPar0(hmm_3, formula=formula)
 
 ```
 
 Fit a refined HMM with the parameters from the initial three-state HMM.
 
-```{r fit hmm4, message = FALSE}
+```{r fit hmm_trans_3, message = FALSE}
 
 set.seed(2023)
-hmm4_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+hmm_trans_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm3_km$Par,
-            delta0 = Par0_hmm3_km$delta, 
-            beta0 = Par0_hmm3_km$beta,
-            formula=formula,
-            retryFits = 10)
+            Par0=Par0_hmm3$Par,
+            delta0 = Par0_hmm3$delta, 
+            beta0 = Par0_hmm3$beta,
+            formula=formula)
 
 ```
 
 We can view the parameters and regression coefficients for the transition probabilities.
 
-```{r print hmm4, message = FALSE}
+```{r print hmm_trans_3, message = FALSE}
 
-print(hmm4_km)
-hmm4_km$CIbeta
+hmm_trans_3$CIbeta
 
 ```
 
 It's helpful to visualize the results for easier interpretation of the parameters and regression coefficients.
 
-```{r plot hmm4, message = FALSE}
-plot(hmm4_km)
-plotPR(hmm4_km)
+```{r plot hmm_trans_3, message = FALSE}
+plot(hmm_trans_3)
+plotPR(hmm_trans_3)
 ```
 
 We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states. Further, the pseudo-residual plot for step length looks much better, with the observed points in the Q-Q plot falling within the predicted Q-Q bands. As well, all the step length autocorrelation is below the blue line.
 
-For code to recreate the more polished figures in the paper, please refer to the script `figures.rmd`.
+The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
 
+There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
 
-#### 3-states with covariate effects on transition and emission probabilities
+Last, there is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
 
-Here we allow prey diversity to influence the step length and turning angle in the emission probability. The covariates allowed to influence the emission probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
+```{r}
 
-First we define the formulas.
+statianary_est <- plotStationary(hmm_trans_3, plotCI = TRUE, return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
 
-```{r define parameters for hmm emission probability}
+# combine into long data.frame as required by ggplot
+statianary_est <- dplyr::bind_rows(statianary_est[[1]]) %>% 
+  mutate(state = rep(hmm_trans_3$stateNames, each = 101))
+
+# set colors
+colours.states <- c("#99DDB6", "#539D9C", "#312C66")
+
+# generate plot
+ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
+  geom_ribbon(aes(ymin = est-se, ymax = est+se), alpha = 0.2) + 
+  geom_line(aes(col = state)) +
+  scale_colour_manual(values = colours.states) +
+  scale_fill_manual(values = colours.states) +
+  ylab("State Probability") + 
+  xlab("Prey Diversity") +
+  theme_minimal()
+```
+
+This plot shows that the probability of being in the slow behavior, which is often of importance for conservation because it is thought to be associated with foraging, had a positive relationship with prey diversity, the probability of being in the moderate speed behavior decreases with prey diversity, and the probability of being in fast behavior remained relatively constant with prey diversity, with a potential peak in low-medium prey diversity.
+
+#### 3-states with covariate effects on transition and observation probabilities
+
+Here we allow prey diversity to influence the step length and turning angle in the observation probabilities. The covariates allowed to influence the observation probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
+
+First we define the formulas. Here, we will focus on the effects of prey diversity on step length mean and turning angle concentration.
+
+```{r define parameters for hmm observation probability 3 state}
 
 distFormula <- ~ preydiv
 stepDM <- list(mean = distFormula, sd = ~ 1) 
@@ -530,81 +550,47 @@ DM <- list(step = stepDM, angle = angleDM)
 
 Next we grab the parameters from our refined three-state HMM and update the model to include a design matrix (DM) for effects of covariates on distributions. 
 
-```{r grab parameters for hmm emission probability}
+```{r grab parameters for hmm observation probability 3 state}
 
-Par0_hmm5_km <- momentuHMM::getPar0(hmm4_km, DM = DM)
+Par0_hmm_obstrans_3 <- momentuHMM::getPar0(hmm_trans_3, DM = DM)
 
 ```
 
-Just as when we added covariates to the transition probability, when adding new covariates to emission probabilities using getPar0(), the intercept coefficients are taken from the previous model and initial slope coefficients are set to 0. We can see this by comparing the previously estimated parameters to the initial parameters for the next model with covariates. Note that when DM is not included in the model, `momentuHMM` assumes initial parameters are on the natural scale (i.e., on the scale of how observations are measured). However, when DM is included, then initial parameters must be provided on the working scale (i.e., the scale in which the optimization occurs, between negative and positive infinity). To convert working-scale parameters to the natural scale, we must apply the inverse of the link function associated with that parameter (Table 2 in the vignette for `momentuHMM`). In the case of mean and standard deviation associated with the gamma distribution used for step length, the link function is `log()`, therefore we must apply `exp()` to convert the working scale parameters returned by `getPar0()` to the natural scale.
+Just as when we added covariates to the transition probability, when adding new covariates to observation probabilities using getPar0(), the intercept coefficients are taken from the previous model and initial slope coefficients are set to 0. We can see this by comparing the previously estimated parameters to the initial parameters for the next model with covariates. Note that when DM is not included in the model, `momentuHMM` assumes initial parameters are on the natural scale (i.e., on the scale of how observations are measured). However, when DM is included, then initial parameters must be provided on the working scale (i.e., the scale in which the optimization occurs, between negative and positive infinity). To convert working-scale parameters to the natural scale, we must apply the inverse of the link function associated with that parameter (Table 2 in the vignette for `momentuHMM`). In the case of mean and standard deviation associated with the gamma distribution used for step length, the link function is `log()`, therefore we must apply `exp()` to convert the working scale parameters returned by `getPar0()` to the natural scale.
 
-```{r preview HMM5 Par0}
+```{r preview Par0_hmm_obstrans_3}
 # transition probability matrix (TPM) parameters from hmm1_km 
 # 'natural scale'
-hmm4_km$mle$step
+hmm_trans_3$mle$step
 # initial parameters for hmm2_km with effect of preydiv on TPM
 # working scale converted to natural scale using inverse of link function
-exp(Par0_hmm5_km$Par$step)
+exp(Par0_hmm_obstrans_3$Par$step)
 ```
 
 Fit the model.
 
-```{r fit hmm emission probability}
+```{r fit hmm_obstrans_3}
 
 # fit HMM with parameters from hmm2_km and initial slope parameters set to 0
 set.seed(2023)
-hmm5_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+hmm_obstrans_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm5_km$Par,
-            delta0 = Par0_hmm5_km$delta, 
-            beta0 = Par0_hmm5_km$beta,
+            Par0=Par0_hmm_obstrans_3$Par,
+            delta0 = Par0_hmm_obstrans_3$delta, 
+            beta0 = Par0_hmm_obstrans_3$beta,
             formula=formula,
             DM = DM)
 
 ```
 
-Visualize the results.
 
-```{r}
 
-plot(hmm5_km, ask = F, plotCI = TRUE)
-
-```
-
-The plots show that as prey diversity increases, the step length mean and standard deviation appear to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement, though the standard deviation may decrease with prey diversity. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean and sd are unreliable. 
-
-There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
-
-Last, there is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
-
-```{r}
-
-statianary_est <- plotStationary(hmm5_km, plotCI = TRUE, return = T) # returns a list of data frames with estimated stationary state distribution and confidence intervals (useful for plotting with ggplot)
-
-# combine into long data.frame as required by ggplot
-statianary_est <- dplyr::bind_rows(statianary_est[[1]]) %>% 
-  mutate(state = rep(hmm5_km$stateNames, each = 101))
-
-# set colors
-colours.states <- c("#99DDB6", "#539D9C", "#312C66")
-
-# generate plot
-ggplot(statianary_est, aes(x = cov, y = est, fill = state)) + 
-  geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2) + 
-  geom_line(aes(col = state)) +
-  scale_colour_manual(values = colours.states) +
-  scale_fill_manual(values = colours.states) +
-  ylab("State Probability") + 
-  xlab("Prey Diversity") +
-  theme_minimal()
-```
-
-#### 3-states with covariate effects on emission probabilities
+#### 3-states with covariate effects on observation probabilities
 
 First we define the formulas.
 
-```{r define models for hmm6 emission probability}
+```{r define models for hmm_obs_3}
 
 stepDM <- list(mean = distFormula, sd = ~ 1) 
 angleDM <- list(concentration = distFormula) 
@@ -612,39 +598,44 @@ DM <- list(step = stepDM, angle = angleDM)
 
 ```
 
-Get initial parameter estimates based on hmm4_km.
+Get initial parameter estimates based on hmm_trans_3
 
 
-```{r get initial parameter estimates for hmm6 from hmm3}
-Par0_hmm6_km <- getPar0(hmm3_km, DM = DM)
+```{r get initial parameter estimates for hmm_obs_3 from hmm_trans_3}
+Par0_hmm_obs_3 <- getPar0(hmm_trans_3, DM = DM)
 ```
 
-Fit hmm.
-```{r fit hmm6}
-hmm6_km <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
+Fit the model.
+
+```{r fit hmm_obs_3}
+hmm_obs_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
                               stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
                               dist=list(step=stepDist,angle=angleDist),
-                              Par0=Par0_hmm6_km$Par,
+                              Par0=Par0_hmm_obs_3$Par,
                               DM = DM)
 ```
 
-plot
+Visualize the results. 
+
 ```{r}
-plot(hmm6_km, ask = F, plotCI = T)
+plot(hmm_obs_3, ask = F, plotCI = T)
 ```
+
+Visualize the results.
+
+```{r}
+
+plot(hmm_obs_3, ask = F, plotCI = TRUE)
+
+```
+
 
 View parameters
+
 ```{r}
-hmm6_km$CIbeta
+hmm_obs_3$CIbeta
 ```
 
-Last, we will compare the 3-state models using AIC:
-
-```{r compare 3-state AIC}
-AIC(hmm3_km, hmm4_km, hmm5_km, hmm6_km)
-```
-
-Based on the AIC values, the top model appears to be this final model, which includes effects of covariates on only the emission probability. 
 
 # Plots of predicted relationships with the covariate
 
@@ -866,7 +857,7 @@ Exploring the insight on the relationship between our seal and prey diversity is
 ```{r hmm grab stationaries, fig.show='hide'}
 
 # grab stationary probabilities
-ps <- momentuHMM::plotStationary(hmm4_km, plotCI= TRUE, return = TRUE)
+ps <- momentuHMM::plotStationary(hmm_trans_3, plotCI= TRUE, return = TRUE)
 
 # grab values for data frame
 state1 <- ps$preydiv$'Slow movement' %>% mutate(state = 1)
@@ -1148,7 +1139,7 @@ We will first estimate the stationary state probabilities of each state based on
 
 ```{r hmm prediction for map}
 
-x <- as.data.frame(momentuHMM::stationary(hmm4_km, 
+x <- as.data.frame(momentuHMM::stationary(hmm_trans_3, 
                    data.frame(preydiv = newfish$preydiv)))
 newfish$hmm_state1 <- x$Slow.movement
 newfish$hmm_state2 <- x$Moderate.movement
