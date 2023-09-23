@@ -1216,4 +1216,8 @@ Signer, J., J. Fieberg, and T. Avgar. (2019). Animal movement tools (amt): R pac
 <div style="text-indent: -40px; padding-left: 40px;"> Van Winkle, W. (1975). Comparison of several probabilistic home-range models. The Journal of wildlife Management, 118-123. https://doi.org/10.2307/3800474 </div>
 
 # Session
+
+```{r}
 sessioninfo::session_info()
+```
+
