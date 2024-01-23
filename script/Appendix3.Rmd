@@ -581,9 +581,7 @@ Visualize the results.
 plot(hmm_obs_3, ask = F, plotCI = T)
 ```
 
-
-#MAM CONFIRM is this good?
-The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. For the moderate movement, step length appears to increase as prey diversity increases. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
+The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. For the moderate movement, step length appears to increase as prey diversity increases. Likely due to low frequency of travelling (fast movement) state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
 
 There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
 
@@ -593,10 +591,7 @@ View parameters
 hmm_obs_3$CIbeta
 ```
 
-#MAM: it would be good to add some explanations of the results here. This is I think the second model presented in the appendix. So some info here would be good.
-#Maybe this from earlier: We see that when including covariates affecting the observation distributions in a 2-state model, step length of both states decreases as prey diversity increases. For both states, the turn angle concentration also decreases with prey diversity. In other words, as prey diversity increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. We also see that the ACF plots are  noticeably better than previous models. 
-
-
+We see that when including covariates affecting the observation distributions in a 3-state model, step length mean decreases as prey diversity increases for both the slow movement and fast movement states, where as the step length mean increase as prey diversity increases for the moderate movement state. Likewise, turning angle concentration decreases as prey diversity increases for both the slow movement and fast movement states, where as the turning angle concentration increase as prey diversity increases for the moderate movement state. In other words, as prey diversity increases, behaviors become slower (or faster) and more tortuous.
 
 
 # Plots of predicted relationships with the covariate
