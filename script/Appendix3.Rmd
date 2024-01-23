@@ -176,18 +176,16 @@ Next we will fit our two SSFs. The workflow is similar to that of the RSF, howev
 
 ```{r ssf data}
 # prep data and generate availability sample
-#MAM: This was great, but made a change to help explain the parameters
 data_obs_steps <- seal %>%
   make_track(lon, lat, date) %>% #  convert data to track format
   steps()
+
 set.seed(2023)
 data_ssf <- data_obs_steps %>% # convert track data to step format (i.e., with a start and an end)
   random_steps()  # generate availability sample 
 ```
 
-#MAM: I get Warning NaNs. Is this normal? If yes, can you state/explain?
 
-#MAM: I've also added this (it's useful to understand the parameters below):
 By default, when applied to objects of class `step_xy`, the function `random_steps()` samples the step lengths from a gamma distribution with parameters estimated from the observed step lengths and turning angles from a von Mises distribution with parameters estimated from the observed turning angles.
 
 Visualize the sample created.
@@ -363,13 +361,11 @@ hmm_trans_2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             stateNames = c("Slow movement", "Moderate movement"),
             dist=dist,
             Par0=list(step=stepPar0,angle=kappa0),
-            retryFits = 2, retrySD = 3)
+            retryFits = 2)
 
 ```
 
-#MAM: I've added this
 As starting values can influence the model fit, it is advisable to fit the model with multiple starting values. This is what the argument `retryFits` achieves. To limit computation time of the tutorial, it is limited to 2, but a larger number should be used in a real analysis. 
-#MAM: Any reason why you specific the sd for retry fit rather than default values?
 
 #### 2-states with covariate effects on transition probabilities
 
