@@ -406,11 +406,10 @@ hmm_trans_2_refined <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             Par0=Par0_hmm_trans_2$Par,
             delta0 = Par0_hmm_trans_2$delta, 
             beta0 = Par0_hmm_trans_2$beta,
-            formula=formula)
+            formula=formula, retryFits = 2)
 
 ```
 
-#MAM: you probabily want to add retryFits everywhere.
 
 Visualize the results.
 
@@ -418,19 +417,14 @@ Visualize the results.
 plot(hmm_trans_2_refined)
 ```
 
-We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the long step length movements as their own state. We can look at the pseudo-residuals of the model to confirm whether this is the case. 
+We can see from the step-length histogram and the map that it doesn't look like this HMM is capturing the short and moderate step length movements as their own states. We can look at the pseudo-residuals of the model to confirm whether this is the case. 
 
-#MAM: to me it looks like it is capturing the long step as their own state. Also, the 3-states actually has the same long step length distribution, it's more dividing the short step length into short and moderate, no? Am I missing something? 
 
 ```{r plot hmm_trans_2_refined pseudo-resid, warning=FALSE}
 plotPR(hmm_trans_2_refined)
 ```
 
-We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. This supports our previous conclusion that the model is not adequately capturing faster step lengths, which may be indicative of a missing state. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. 
-
-#MAM: I would not over emphasize the QQ plot from the step-length. They are actually not so bad. The turning anlge is more problematic. Your point on the autocorrelation of step length is good.
-
-The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
+We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
 
 #### 2-states with covariate effects on observation probabilities
 
@@ -465,7 +459,7 @@ hmm_obs_2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
             dist=list(step=stepDist,angle=angleDist),
             Par0 = Par0_hmm_obs_2,
             DM = DM, 
-            retryFits = 2, retrySD = 3)
+            retryFits = 2)
 ```
 
 Visualize the results.
@@ -475,9 +469,7 @@ plot(hmm_obs_2, ask = F, plotCI = T)
 plotPR(hmm_obs_2)
 ```
 
-We see that when including covariates affecting the observation distributions in a 2-state model, step length of both states decreases as preydiv increases. The mean step length of slow state varies from 12 to 4 with preydiv, while for the fast state, mean step length varies from 42 to 12. For both states, the turn angle concentration also decreases with prey div. In other words, as prey diversity increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. Very importantly, we see that the Q-Q plots are significantly improved, with most of the data falling within the quantile bands. However, the ACF plots are not noticeably better than previous models, suggesting there is still latent autocorrelation we are not capturing. 
-
-#MAM: I think maybe my results are slightly different. I don't see the same things in the QQ-plots. I'd say the ACF of the step length is much better (not perfect, but some of the correlation has dropped).
+We see that when including covariates affecting the observation distributions in a 2-state model, step length of both states decreases as prey diversity increases. For both states, the turn angle concentration also decreases with prey diversity. In other words, as prey diversity increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. We also see that the ACF plots are  noticeably better than previous models. 
 
 
 ### 3-state HMMs 
@@ -510,7 +502,7 @@ set.seed(2023)
 hmm_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
             stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
             dist=list(step=stepDist,angle=angleDist),
-            Par0=list(step=stepPar0,angle=kappa0))
+            Par0=list(step=stepPar0,angle=kappa0), retryFits = 2)
 
 ```
 
@@ -521,9 +513,7 @@ plot(hmm_3, ask = F)
 plotPR(hmm_3)
 ```
 
-The predicted state map seems to adequately capture slow, moderate, and fast movement. Importantly, both the Q-Q and ACF plots are significantly improved from previous 2-state models. Therefore, the remainder of our analysis will be built on the 3-state model.
-
-#MAM: here again, I'm not sure I would over state the qq-plots results. But definitely the ACF is fixed now!
+The predicted state map seems to adequately capture slow, moderate, and fast movement. Importantly, the ACF plots are significantly improved from previous 2-state models. Therefore, the remainder of our analysis will be built on the 3-state model.
 
 
 #### 3-states with covariate effects on transition probabilities 
@@ -553,7 +543,7 @@ hmm_trans_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             Par0=Par0_hmm3$Par,
             delta0 = Par0_hmm3$delta, 
             beta0 = Par0_hmm3$beta,
-            formula=formula)
+            formula=formula, retryFits = 2)
 
 ```
 
@@ -661,7 +651,7 @@ hmm_obstrans_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
             delta0 = Par0_hmm_obstrans_3$delta, 
             beta0 = Par0_hmm_obstrans_3$beta,
             formula=formula,
-            DM = DM)
+            DM = DM, retryFits = 2)
 
 ```
 
@@ -693,7 +683,7 @@ hmm_obs_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
                               stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
                               dist=list(step=stepDist,angle=angleDist),
                               Par0=Par0_hmm_obs_3$Par,
-                              DM = DM)
+                              DM = DM, retryFits = 2)
 ```
 
 Visualize the results. 
