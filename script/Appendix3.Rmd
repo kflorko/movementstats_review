@@ -116,13 +116,11 @@ sealfishmap
 
 # Fit models
 
-We will fit four models: 1) a resource selection function (RSF), 2) a step selection function (SSF) without habitat covariates in the movement kernel, 3) a SSF with a habitat covariate modifying the movement kernel, and 4) a hidden Markov model (HMM). All four of these models will include prey diversity as a covariate.
+We will fit four main models: 1) a resource selection function (RSF), 2) a step selection function (SSF) without habitat covariates in the movement kernel, 3) a SSF with a habitat covariate modifying the movement kernel, and 4) a hidden Markov model (HMM). All four of these main models will include prey diversity as a covariate. Note that we also fit additional HMMs to demonstrate their flexibility.
 
-#MAM: I think you have multiple HMMs, no? So more than 4 models. Maybe clarify/correct previous paragraph.
 
-All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019), while the HMM will use the functions from the `momentuHMM` package (McClintok and Michelot 2018). 
+All of the step selection functions (both the RSF and two SSFs) will be fit using the `amt` package (Signer et al. 2019), while the HMMs will use the functions from the `momentuHMM` package (McClintok and Michelot 2018). 
 
-#MAM: related to above, maybe you need to say HMMs rather than HMM.
 
 ## RSF
 
