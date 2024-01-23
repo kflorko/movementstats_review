@@ -426,50 +426,8 @@ plotPR(hmm_trans_2_refined)
 
 We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
 
-#### 2-states with covariate effects on observation probabilities
-
-First we define the functions for covariates on observation probabilities of step length mean and turn angle concentration.
-
-```{r define parameters for hmm_obs_2}
-distFormula <- ~ preydiv
-stepDM <- list(mean = distFormula, sd = distFormula)
-angleDM <- list(concentration = distFormula)
-DM <- list(step = stepDM, angle = angleDM)
-```
-
-Next we will define initial parameters for this model. Note, when including parameters on observation probabilities, initial parameters must be on the working scale (i.e., from negative to positive infinity). The following parameters were obtained from refitting the model with different starting parameters and using retryFits argument in fitHMM.
 
 #MAM: While in the first sentence of the section only effect on the mean step length is mentionned, I think you are modifying both the mean and the sd of the step length. I think in the appendix it's just the mean step length not the sd of the step length. I would stick to just mean step length, and remove the effect on sd here.
-
-```{r define initila pars for hmm_obs_2 observation probability}
-Par0_hmm_obs_2 <- list(step = c(7, -9, 
-                               8, -8,
-                               5, -6, 
-                               0.1, 3),
-                      angle = c(7, -14,
-                                3, -6))
-```
-
-Fit HMM.
-
-```{r fit hmm_obs_2, message = FALSE}
-set.seed(2023)
-hmm_obs_2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=2,
-            stateNames = c("Slow movement", "Fast movement"),
-            dist=list(step=stepDist,angle=angleDist),
-            Par0 = Par0_hmm_obs_2,
-            DM = DM, 
-            retryFits = 2)
-```
-
-Visualize the results.
-
-```{r plot hmm_obs_2, message = FALSE}
-plot(hmm_obs_2, ask = F, plotCI = T)
-plotPR(hmm_obs_2)
-```
-
-We see that when including covariates affecting the observation distributions in a 2-state model, step length of both states decreases as prey diversity increases. For both states, the turn angle concentration also decreases with prey diversity. In other words, as prey diversity increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. We also see that the ACF plots are  noticeably better than previous models. 
 
 
 ### 3-state HMMs 
@@ -602,16 +560,12 @@ ggplot(statianary_est, aes(x = cov, y = est, fill = state)) +
 
 This plot shows that the probability of being in the slow behavior, which is often of importance for conservation because it is thought to be associated with foraging, had a positive relationship with prey diversity, the probability of being in the moderate speed behavior decreases with prey diversity, and the probability of being in fast behavior remained relatively constant with prey diversity, with a potential peak in low-medium prey diversity.
 
-#### 3-states with covariate effects on transition and observation probabilities
-
-
 
 #### 3-states with covariate effects on observation probabilities
 
 Here we allow prey diversity to influence the step length and turning angle in the observation probabilities. The covariates allowed to influence the observation probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity.
 
 First we define the formulas. Here, we will focus on the effects of prey diversity on step length mean and turning angle concentration. 
-
 
 ```{r define models for hmm_obs_3}
 
@@ -646,14 +600,6 @@ Visualize the results.
 plot(hmm_obs_3, ask = F, plotCI = T)
 ```
 
-Visualize the results.
-
-```{r}
-
-plot(hmm_obs_3, ask = F, plotCI = TRUE)
-
-```
-
 
 View parameters
 
@@ -662,6 +608,10 @@ hmm_obs_3$CIbeta
 ```
 
 #MAM: it would be good to add some explanations of the results here. This is I think the second model presented in the appendix. So some info here would be good.
+#Maybe this from earlier: We see that when including covariates affecting the observation distributions in a 2-state model, step length of both states decreases as prey diversity increases. For both states, the turn angle concentration also decreases with prey diversity. In other words, as prey diversity increases, behaviors become slower and more tortuous. The decoded state map also looks like it's adequately distinguishing faster travelling and slower resident states. We also see that the ACF plots are  noticeably better than previous models. 
+
+
+
 
 # Plots of predicted relationships with the covariate
 
