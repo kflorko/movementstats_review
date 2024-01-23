@@ -604,62 +604,14 @@ This plot shows that the probability of being in the slow behavior, which is oft
 
 #### 3-states with covariate effects on transition and observation probabilities
 
-#MAM: you can cut this one, and add some of that info in the next one, since it's the main alternative presented in the appendix (I think).
-
-Here we allow prey diversity to influence the step length and turning angle in the observation probabilities. The covariates allowed to influence the observation probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity. Note that our downstream analyses focus on the main HMM, where we allow prey diversity to influence the state transition probability.
-
-First we define the formulas. Here, we will focus on the effects of prey diversity on step length mean and turning angle concentration.
-
-```{r define parameters for hmm observation probability 3 state}
-
-distFormula <- ~ preydiv
-stepDM <- list(mean = distFormula, sd = ~ 1) 
-angleDM <- list(concentration = distFormula) 
-DM <- list(step = stepDM, angle = angleDM)
-
-```
-
-Next we grab the parameters from our refined three-state HMM and update the model to include a design matrix (DM) for effects of covariates on distributions. 
-
-```{r grab parameters for hmm observation probability 3 state}
-
-Par0_hmm_obstrans_3 <- momentuHMM::getPar0(hmm_trans_3, DM = DM)
-
-```
-
-Just as when we added covariates to the transition probability, when adding new covariates to observation probabilities using getPar0(), the intercept coefficients are taken from the previous model and initial slope coefficients are set to 0. We can see this by comparing the previously estimated parameters to the initial parameters for the next model with covariates. Note that when DM is not included in the model, `momentuHMM` assumes initial parameters are on the natural scale (i.e., on the scale of how observations are measured). However, when DM is included, then initial parameters must be provided on the working scale (i.e., the scale in which the optimization occurs, between negative and positive infinity). To convert working-scale parameters to the natural scale, we must apply the inverse of the link function associated with that parameter (Table 2 in the vignette for `momentuHMM`). In the case of mean and standard deviation associated with the gamma distribution used for step length, the link function is `log()`, therefore we must apply `exp()` to convert the working scale parameters returned by `getPar0()` to the natural scale.
-
-```{r preview Par0_hmm_obstrans_3}
-# transition probability matrix (TPM) parameters from hmm1_km 
-# 'natural scale'
-hmm_trans_3$mle$step
-# initial parameters for hmm2_km with effect of preydiv on TPM
-# working scale converted to natural scale using inverse of link function
-exp(Par0_hmm_obstrans_3$Par$step)
-```
-
-Fit the model.
-
-```{r fit hmm_obstrans_3}
-
-# fit HMM with parameters from hmm2_km and initial slope parameters set to 0
-set.seed(2023)
-hmm_obstrans_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
-            stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
-            dist=list(step=stepDist,angle=angleDist),
-            Par0=Par0_hmm_obstrans_3$Par,
-            delta0 = Par0_hmm_obstrans_3$delta, 
-            beta0 = Par0_hmm_obstrans_3$beta,
-            formula=formula,
-            DM = DM, retryFits = 2)
-
-```
-
 
 
 #### 3-states with covariate effects on observation probabilities
 
-First we define the formulas.
+Here we allow prey diversity to influence the step length and turning angle in the observation probabilities. The covariates allowed to influence the observation probabilities are typically abiotic (e.g., snow depth), but for the sake of this tutorial, we will fit this model using prey diversity.
+
+First we define the formulas. Here, we will focus on the effects of prey diversity on step length mean and turning angle concentration. 
+
 
 ```{r define models for hmm_obs_3}
 
@@ -669,12 +621,14 @@ DM <- list(step = stepDM, angle = angleDM)
 
 ```
 
-Get initial parameter estimates based on hmm_trans_3
-
+Next we grab the parameters from our refined three-state HMM and update the model to include a design matrix (DM) for effects of covariates on distributions. 
 
 ```{r get initial parameter estimates for hmm_obs_3 from hmm_trans_3}
 Par0_hmm_obs_3 <- getPar0(hmm_trans_3, DM = DM)
 ```
+
+Just as when we added covariates to the transition probability, when adding new covariates to observation probabilities using getPar0(), the intercept coefficients are taken from the previous model and initial slope coefficients are set to 0. We can see this by comparing the previously estimated parameters to the initial parameters for the next model with covariates. Note that when DM is not included in the model, `momentuHMM` assumes initial parameters are on the natural scale (i.e., on the scale of how observations are measured). However, when DM is included, then initial parameters must be provided on the working scale (i.e., the scale in which the optimization occurs, between negative and positive infinity). To convert working-scale parameters to the natural scale, we must apply the inverse of the link function associated with that parameter (Table 2 in the vignette for `momentuHMM`). In the case of mean and standard deviation associated with the gamma distribution used for step length, the link function is `log()`, therefore we must apply `exp()` to convert the working scale parameters returned by `getPar0()` to the natural scale.
+
 
 Fit the model.
 
