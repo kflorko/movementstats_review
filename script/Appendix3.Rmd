@@ -303,12 +303,9 @@ Similar to ssf1, we don't see any significant relationships. Note that we also i
 
 ### 2-state HMMs
 
-Finally, we will fit the HMM using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. We will first fit a two-state model.
-
-#MAM: same as above. I think in the end you have multiple 3-states HMMs. So worth clarifying up-front to be consistant.
+Finally, we will fit the HMMs using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. We will first fit a two-state model.
 
 This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the observation probabilities. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
-
 
 ```{r prep hmm data , message = FALSE}
 
@@ -425,9 +422,6 @@ plotPR(hmm_trans_2_refined)
 ```
 
 We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
-
-
-#MAM: While in the first sentence of the section only effect on the mean step length is mentionned, I think you are modifying both the mean and the sd of the step length. I think in the appendix it's just the mean step length not the sd of the step length. I would stick to just mean step length, and remove the effect on sd here.
 
 
 ### 3-state HMMs 
@@ -555,6 +549,7 @@ First we define the formulas. Here, we will focus on the effects of prey diversi
 
 ```{r define models for hmm_obs_3}
 
+distFormula <- ~ preydiv
 stepDM <- list(mean = distFormula, sd = ~ 1) 
 angleDM <- list(concentration = distFormula) 
 DM <- list(step = stepDM, angle = angleDM)
@@ -587,7 +582,7 @@ plot(hmm_obs_3, ask = F, plotCI = T)
 ```
 
 
-#MAM CONFIRM
+#MAM CONFIRM is this good?
 The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. For the moderate movement, step length appears to increase as prey diversity increases. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
 
 There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
