@@ -1,6 +1,6 @@
 ---
 title: "A comparison of statistical models used to characterize species-habitat associations with movement data: Appendix 3"
-author: "Katie Florko (#MAM: add co-authors, at least those that help with the code)"
+author: "Katie Florko, Ron Togunov, Marie Auger-Méthé"
 date: "22/09/2023"
 output:
   html_document:
