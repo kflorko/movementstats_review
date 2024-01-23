@@ -476,8 +476,6 @@ The predicted state map seems to adequately capture slow, moderate, and fast mov
 
 #### 3-states with covariate effects on transition probabilities 
 
-#MAM: I find the order of the HMM sections a bit strange. I would have put this model before (since it's the main model), and would skip the 2-state HMM with covariates in observation distribution. I think you can just say one way to deal with autocorraletion is adding another state or adding covariates in the transition prabilities (since this is a explanation of the main model), then jump to plain 3-state HMM, then come to 3-state HMM with covariates in transition, and then talk about covariates in observation probability (which is pretty minor). 
-
 Here, we will explore adding effects of covariates on the transition probabilities. Note that this is the most typical application of covariates to HMM, and this model is the main model we focus on in the main paper.
 
 First, define transition probability model, and retrieve parameters to refine the model. 
@@ -520,21 +518,9 @@ plot(hmm_trans_3)
 plotPR(hmm_trans_3)
 ```
 
-We can see that this three-state HMM does much better than the two-state HMM. We can see that those long step-lengths are captured in state 3, and the map of the decoded states appears to group different looking movement patterns as different states. Further, the pseudo-residual plot for step length looks much better, with the observed points in the Q-Q plot falling within the predicted Q-Q bands. As well, all the step length autocorrelation is below the blue line.
+We can see that this three-state HMM does better than the two-state HMM. We can see that those short and moderate step-lengths are captured in state 1 and 2, respectively, and the map of the decoded states appears to group different looking movement patterns as different states. Further, the pseudo-residual plot for step length look pretty good, with almost all of the observed points in the Q-Q plot falling within the predicted Q-Q bands. 
 
-#MAM: see comments above.
-
-The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. Mean step length does not appear to change significantly during moderate movement. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
-
-#MAM: I think you are talking about the results of the wrong model. Here prey div is not affecting step length. It's affecting the behaviours.
-
-There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
-
-#MAM: same, I think you are referring to the wrong results.
-
-Last, there is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. However, the overall stationary state probability distribution does not appear to vary significantly when considering all state transitions:
-
-#MAM: I'm not sure your resulst support the last sentence. Or maybe I'm missing what you are getting at?
+There is no apparent effect of prey diversity on transitions from slow movement or moderate movement. However, as prey diversity increases, there appears to be a decrease in the transition probability from travel to slow movement, an increase in transition probability from fast to moderate movement, and a peak in remaining within the travelling state when prey diversity is around 0.57. 
 
 ```{r}
 
@@ -600,6 +586,11 @@ Visualize the results.
 plot(hmm_obs_3, ask = F, plotCI = T)
 ```
 
+
+#MAM CONFIRM
+The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. For the moderate movement, step length appears to increase as prey diversity increases. Due to low frequency of travelling state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
+
+There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
 
 View parameters
 
