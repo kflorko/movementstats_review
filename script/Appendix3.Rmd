@@ -24,7 +24,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Overview
 
-This document contains a coding tutorial that demonstrates how to perform the analyses associated with the case study in "*A comparison of statistical models used to characterize species-habitat associations with movement data*". All analyses link the movement data of a ringed seal in eastern Hudson Bay, Canada, to modeled prey diversity.
+This document contains a coding tutorial that demonstrates how to perform the analyses associated with the case study in "*A review of statistical models used to characterize species-habitat associations with animal movement data*". All analyses link the movement data of a ringed seal in eastern Hudson Bay, Canada, to modeled prey diversity.
 
 # Set-up  
 ## Load packages
@@ -37,9 +37,9 @@ library(lubridate)
 
 # mapping
 library(rnaturalearth)
-#MAM: I think you also need rnaturalearthdata (or at least it needs to be installed also, if not you run into errors on line 73)
+library(rnaturalearthdata)
 library(rgdal) 
-#MAM: do you need rgdal. It's deprecated (which is not great). If you really need to stick to rgdal (than add how to install from archive:
+#if you need to install, install from archive:
 #devtools::install_version('rgdal', version = '1.6-7') )
 library(terra)
 library(tidyterra)
@@ -49,7 +49,7 @@ library(viridis)
 # fitting models
 library(amt) # for selection functions
 library(momentuHMM) # for hidden Markov model
-# I think you need geosphere to be installed for l344 to work. Worth mentionning this (or just add library(geosphere), then people will know to install)
+library(geosphere)
 
 # plotting
 library(ggplot2)

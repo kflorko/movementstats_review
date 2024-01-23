@@ -203,7 +203,8 @@ fig6a <- p1 +
 
 fig6b <- p1 + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", breaks = c(0,0.01,0.02)) +
+  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", 
+                     breaks = c(0,0.02,0.04), limits = c(0, 0.04)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -220,7 +221,8 @@ fig6b <- p1 +
 
 fig6c <- p1 + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", breaks = c(0,0.01,0.02)) +
+  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", 
+                     breaks = c(0,0.02,0.04), limits = c(0, 0.04)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -294,7 +296,7 @@ fig6f <- p1 +
          title.hjust = 0.5), 
          size = guide_legend(title.position="top", title.hjust = 0.5))
 
-tiff(file = "figures/asus_fig6.tiff", units="in", width=12, height = 8.5, res=500)
+tiff(file = "figures/asus_fig6.tiff", units="in", width=13, height = 8.5, res=300)
 plot_grid(fig6a, fig6b, fig6c, fig6d, fig6e, fig6f, ncol = 3)
 dev.off()
 ```
