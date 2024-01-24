@@ -190,12 +190,14 @@ By default, when applied to objects of class `step_xy`, the function `random_ste
 
 Visualize the sample created.
 ```{r ssf plot}
+
 # plot used vs available locations on-top of prey diversity
 data_ssf_map <- sealfishmap +
   geom_point(data=data_ssf, aes(x=x2_, y=y2_, color = case_), alpha = 0.6) +
   scale_color_manual(values = c("black", "#FCEEAE"), 
                      label = c("Available", "Observed"), name = "Data type") 
 data_ssf_map
+
 ```
 
 We can see that the availability sample is generated at each step and is not restricted to the minimum convex polygon.
@@ -212,10 +214,12 @@ data_ssf <- data_ssf %>%
 
 We will transform both the step length and turning angle using log and cosine transformations, respectively.
 ```{r ssf dataprep}
+
 # transform movement covariates
 data_ssf <- data_ssf %>%
   mutate(cos_ta = cos(ta_),
          log_sl = log(sl_))
+
 ```
 
 Next, we will fit the models. The response, `case_`, is the column of `data_ssf` that identifies whether the location is a used (`TRUE`) or available (`FALSE`) location, and `preydiv` is the covariate for prey diversity at that location. `log_sl` is the log transformation of step length, and `cos_ta` is the cosine transformation of turning angle. `strata(step_id_)` specifies that the this is a *conditional* logistic regression that groups data by step identification number.
@@ -223,64 +227,66 @@ Next, we will fit the models. The response, `case_`, is the column of `data_ssf`
 We are fitting two SSFs: one without a movement-related covariate (called ssf1), and one with a movement-related covariate (called ssf2). 
 
 ```{r ssf fit}
+
 # fit ssfs
 ## ssf1: ssf without covariate affecting movement kernel
 ssf1 <- data_ssf %>%
-  fit_clogit(case_ ~ preydiv + log_sl + cos_ta + strata(step_id_), model = TRUE)
-#MAM: just checking the gamma thing discussed in the comments of the appendix
-ssf1_b <- data_ssf %>%
   fit_clogit(case_ ~ preydiv + sl_ + log_sl + cos_ta + strata(step_id_), model = TRUE)
 
 
 ## ssf2: ssf with covariate affecting movement kernel
 ssf2 <- data_ssf %>%
-  fit_clogit(case_ ~ preydiv*log_sl + cos_ta + strata(step_id_), model = TRUE)
-
-#MAM: just checking the gamma thing discussed in the comments of the appendix - 
-ssf2_b <- data_ssf %>%
   fit_clogit(case_ ~ sl_ + preydiv*log_sl + cos_ta + strata(step_id_), model = TRUE)
+
 ```
 
 First we will interpret ssf1. 
 ```{r ssf1 summary}
-# see model summary
+
 summary(ssf1)
 
-#MAM: checking if it works with sl
-summary(ssf1_b)
 ```
 
 
-This model estimates the coefficients (coef) as well as the exponent of the coefficient (exp(coef)). The coefficients are as in our regular logistic regression (the RSF), and the exp(coef) quantifies the relative intensity of use of two locations that differ by 1 unit of prey diversity but are otherwise the same. The model suggests our seal would be 2.6 times more likely to choose a location with 1 unit higher prey diversity (see Fieberg et al. 2021). However, this is not significant (p = 0.888), and we see that the scale of prey diversity is much smaller (range = 0.5-0.75), and thus an increase in of 2.6 times per 1 unit prey diversity is not a meaningful increase.
+This model estimates the coefficients (coef) as well as the exponent of the coefficient (exp(coef)). The coefficients are as in our regular logistic regression (the RSF), and the exp(coef) quantifies the relative intensity of use of two locations that differ by 1 unit of prey diversity but are otherwise the same. The model suggests our seal would be 2.6 times more likely to choose a location with 1 unit higher prey diversity (see Fieberg et al. 2021). However, this is not significant (p = 0.890), and we see that the scale of prey diversity is much smaller (range = 0.5-0.75), and thus an increase in of 2.6 times per 1 unit prey diversity is not a meaningful increase.
 
-#MAM: I don't think this statement is completely true. See other comment below. My understanding is that if no other process is affecting the movement, than we would expect the betas associated with sl and log_sl to be close to 0 (I'm not entirely sure for the von Mises, since they don't expend as much is Avgar et al) because we are using a conditional logistic regression and we have thus already estimated the based values when creating the available steps (thus it can be put in likelihood, they refer to Forester). However, I think that, if say the preydiversity is affecting selection, then you'd have potentially betas that are far from 0. I don't have a good sense of the magnitude at which they should be, but it does make sense that they are not really big and non-significant as it appears that the prey diversity selection is not changing things much. 
-We don't interpret the values of log_sl or cos_ta, since we don't expect those to affect occurrence since the availability sample is generated using the step length and turning angle from the observed track.
+We also see that we get a warning "2 observations deleted due to missingness", due to two of our available locations being found on land, where we do not have prey diversity values. This could be mitigated by, for example, generating more than 10 (i.e., 15) available locations per used location, omitting the samples without prey diversity values, and then randomly selecting 10 available locations per used location of those that have values for prey diversity.
 
-#MAM: related to my comments in appendix, it might help to re-read Avgar et al 2015 in detail (main paper and appendix, note that there is a corrigedum that corrects a lot of equations/parameters) and state that they link to the parameters of the gamma and von Mises distribution (and thus are very similar to the HMMs you are fitting). I feel explaining a bit how they are link to the gamma and von Mises parameters would be good. With regards to the gamma, it may help to just read the wikipedia page on the topic (especially the table on the right). The main complication in Avgar (and I think Forester) is the fact that the conditionality of available steps that are sampled using estimated gamma and von Mises parameters make things a less straightforward. But this sentence from the main text is particularly helpful: "Once maximum-likelihood estimates are obtained, the shape and scale parameters of the basal step-length distribution can be calculated (Appendix S3), where the shape is given by: [(b1 + b7) + b8.Dt], and the scale is given by: [1/(b2^-1 – b6)]." b1 and b2 are the parameters from gamma distribution estimated from the steps (b1 is shape and b2 is scale). By default random_steps() use fit_distr(x$sl_, "gamma"), see help file. Note that the model we have here is slightly different, since there are no interactions with movement so it would be shape is given by: [(b1 + b7)] and scale: [1/(b2^-1 – b6)]. I think, please double check and/or ask Evan/Ron to double check with you.
+
+Now that we have maximum-likelihood estimates, we will demonstrate how the estimated coefficient for step length can be used as a modifier of the step length shape and scale of the gamma distributions (Avgar et al. 2015). Doing this allows us to account for habitat selection, including prey diversity's affect on habitat selection. See Avgar et al. (2015) for details.
 
 ```{r ssf1 parameter}
-#MAM: Mainly to explain to you the parameters. But could be used to explain.
-obs_sl_par <- fit_distr(data_obs_steps$sl_, "gamma")
+# grab observation step length parameter
+obs_sl_par <- fit_distr(data_obs_steps$sl_, "gamma") # by default, random_steps() uses fit_distr(x$sl_, "gamma")
+
+# grab observed data step length shape
 b1 <- obs_sl_par$params$shape
+
+# grab observed data step length scale
 b2 <- obs_sl_par$params$scale
-# So final shape, after predy diversity selection is included would be
+
+# shape after prey diversity selection is included
 ssf1_gamma_shape <- b1 + summary(ssf1_b)$coef["log_sl",1]
-b1
-ssf1_gamma_shape # A bit different
-# Final scale:
+
+# notice that this modified shape is a bit different from the observed shape
+ssf1_gamma_shape # modified shape
+b1 # observed shape, a bit different
+
+# we can also modify scale to include prey diversity
 ssf1_gamma_scale <- 1/(1/b2 - summary(ssf1_b)$coef["sl_",1])
-b2
-ssf1_gamma_scale
-# Mean difference between observed and modified by prey diversity selection
+
+# notice that it is a bit different from the observed scale
+ssf1_gamma_scale # modified scale
+b2 # observed scale, a bit different
+
+
+# Since by definition, the mean of the gamma is shape*scale, we will show the different gamma means:
 # Mean step length from gamma parametric with observed step length
 b1*b2
 # Mean step length from gamma modified by prey diversity.
-# Note that by definition, the mean of the gamma is shape*scale
 ssf1_gamma_shape*ssf1_gamma_scale
 
 ```
-
-We also see that we get a warning "2 observations deleted due to missingness", due to two of our available locations being found on land, where we do not have fish values. This could be mitigated by generating more than 10 (i.e., 15) available locations per used location, omitting the samples without prey diversity values, and then randomly selecting 10 available locations per used location of those that have values for prey diversity.
 
 
 Next we will interpret ssf2. 
