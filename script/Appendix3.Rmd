@@ -39,7 +39,7 @@ library(lubridate)
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(rgdal) 
-#if you need to install, install from archive:
+#if you need to install rgdal, install from archive:
 #devtools::install_version('rgdal', version = '1.6-7') )
 library(terra)
 library(tidyterra)
@@ -60,6 +60,7 @@ library(ggplot2)
 Next we load in the fish data, which contains the spatial distribution of prey diversity in 2012. The data is in a .csv, and we will rasterize this using it's specific coordinate reference system. This is a subset of the data from Florko et al. (2021a, 2021b).
 
 ```{r load fish}
+
 # load prey diversity data
 fish <- read.csv(here("data/fish.csv"))
 
@@ -86,6 +87,7 @@ fishmap <- ggplot() +
    geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
    coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F)
 fishmap
+
 ```
 
 
@@ -94,6 +96,7 @@ fishmap
 Next we load in one movement track from a ringed seal equipped with an ARGOS satellite telemetry transmitter over the course of over four months in the winter of 2012-2013. This is a subset of the data from Florko et al. (2023a).
 
 ```{r seal data, message = FALSE}
+
 # load seal data
 seal <- read.csv(here("data/seal_track_m.csv")) 
 head(seal)
@@ -102,16 +105,19 @@ head(seal)
 seal <- seal %>%
   mutate(id = as.character(id),
          date = as.Date(date)) 
+
 ```
 
 Visualize the seal data on top of the fish data.
 ```{r plot seals}
+
 # plot seal and fish data together
 sealfishmap <- fishmap + 
   geom_point(data=seal, aes(x=lon, y=lat), alpha = 0.6, color = "#FCEEAE") + 
   geom_path(data=seal, aes(x=lon, y=lat), color = "#FCEEAE") 
 
 sealfishmap
+
 ```
 
 # Fit models
@@ -127,6 +133,7 @@ All of the step selection functions (both the RSF and two SSFs) will be fit usin
 The RSF is the simplest of the four models. Fitting an RSF to movement data first requires us to generate a sample of availability points and extract covariates for the used and available locations. 
 
 ```{r rsf data}
+
 # prep data and generate availability sample
 set.seed(2023)
 data_rsf <- seal %>%
@@ -139,6 +146,7 @@ data_rsf_map <- sealfishmap +
   scale_color_manual(values = c("black", "#FCEEAE"), 
                      label = c("Available", "Observed"), name = "Data type") 
 data_rsf_map
+
 ```
 
 We can see that the availability sample is generated within the minimum convex polygon of the used samples. 
@@ -163,9 +171,12 @@ rsf1 <- data_rsf %>%
 ```
 
 View the summary.
+
 ```{r rsf summary}
+
 # see model summary
 summary(rsf1)
+
 ```
 
 We see that prey diversity is a significant positive covariate. We do not interpret the intercept, since it is not ecologically meaningful in a RSF. See Fieberg et al. (2021) for a detailed discussion on how to interpret parameters. 
@@ -175,6 +186,7 @@ We see that prey diversity is a significant positive covariate. We do not interp
 Next we will fit our two SSFs. The workflow is similar to that of the RSF, however, the availability sample is generated differently. We transform the seal locations into a track format, then convert the track data into step format (i.e., with a start and an end), and then generate the availability sample.
 
 ```{r ssf data}
+
 # prep data and generate availability sample
 data_obs_steps <- seal %>%
   make_track(lon, lat, date) %>% #  convert data to track format
@@ -183,12 +195,14 @@ data_obs_steps <- seal %>%
 set.seed(2023)
 data_ssf <- data_obs_steps %>% # convert track data to step format (i.e., with a start and an end)
   random_steps()  # generate availability sample 
+
 ```
 
 
 By default, when applied to objects of class `step_xy`, the function `random_steps()` samples the step lengths from a gamma distribution with parameters estimated from the observed step lengths and turning angles from a von Mises distribution with parameters estimated from the observed turning angles.
 
 Visualize the sample created.
+
 ```{r ssf plot}
 
 # plot used vs available locations on-top of prey diversity
@@ -213,6 +227,7 @@ data_ssf <- data_ssf %>%
 ```
 
 We will transform both the step length and turning angle using log and cosine transformations, respectively.
+
 ```{r ssf dataprep}
 
 # transform movement covariates
@@ -222,7 +237,7 @@ data_ssf <- data_ssf %>%
 
 ```
 
-Next, we will fit the models. The response, `case_`, is the column of `data_ssf` that identifies whether the location is a used (`TRUE`) or available (`FALSE`) location, and `preydiv` is the covariate for prey diversity at that location. `log_sl` is the log transformation of step length, and `cos_ta` is the cosine transformation of turning angle. `strata(step_id_)` specifies that the this is a *conditional* logistic regression that groups data by step identification number.
+Next, we will fit the models. The response, `case_`, is the column of `data_ssf` that identifies whether the location is a used (`TRUE`) or available (`FALSE`) location, and `preydiv` is the covariate for prey diversity at that location. `sl_` is step length, `log_sl` is the log transformation of step length, and `cos_ta` is the cosine transformation of turning angle. `strata(step_id_)` specifies that the this is a *conditional* logistic regression that groups data by step identification number.
 
 We are fitting two SSFs: one without a movement-related covariate (called ssf1), and one with a movement-related covariate (called ssf2). 
 
@@ -241,6 +256,7 @@ ssf2 <- data_ssf %>%
 ```
 
 First we will interpret ssf1. 
+
 ```{r ssf1 summary}
 
 summary(ssf1)
@@ -252,8 +268,7 @@ This model estimates the coefficients (coef) as well as the exponent of the coef
 
 We also see that we get a warning "2 observations deleted due to missingness", due to two of our available locations being found on land, where we do not have prey diversity values. This could be mitigated by, for example, generating more than 10 (i.e., 15) available locations per used location, omitting the samples without prey diversity values, and then randomly selecting 10 available locations per used location of those that have values for prey diversity.
 
-
-Now that we have maximum-likelihood estimates, we will demonstrate how the estimated coefficient for step length can be used as a modifier of the step length shape and scale of the gamma distributions (Avgar et al. 2015). Doing this allows us to account for habitat selection, including prey diversity's affect on habitat selection. See Avgar et al. (2015) for details.
+Now that we have maximum-likelihood estimates, we will demonstrate how the estimated coefficient for step length can be used as a modifier of the step length shape and scale of the gamma distributions (Avgar et al. 2015). See Avgar et al. (2015) for details.
 
 ```{r ssf1 parameter}
 # grab observation step length parameter
@@ -305,7 +320,7 @@ Similar to ssf1, we don't see any significant relationships. Note that we also i
 
 Finally, we will fit the HMMs using `momentuHMM` (McClintock and Michelot, 2018). In preparation, we define initial parameters, and then update the parameters using our fit model, to ultimately fit a more refined model. We will first fit a two-state model.
 
-This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the observation probabilities. These covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
+This HMM example is parameterized to allow the covariate, prey diversity, influence the state transition probability. We can also allow covariates to influence the observation probabilities; these covariates are typically abiotic, but we show a brief example of how one would fit such a model below our main HMM.
 
 ```{r prep hmm data , message = FALSE}
 
@@ -347,6 +362,7 @@ mu0 <- c(8, 38) # mean step length for each state
 sigma0 <- c(8, 8) # sd step length for each state
 stepPar0 <- c(mu0, sigma0)
 kappa0 <- c(0.35, 0.35)  # turning angle for each state
+
 ```
 
 Fit the two-state HMM.
@@ -362,7 +378,7 @@ hmm_trans_2 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
-As starting values can influence the model fit, it is advisable to fit the model with multiple starting values. This is what the argument `retryFits` achieves. To limit computation time of the tutorial, it is limited to 2, but a larger number should be used in a real analysis. 
+As starting values can influence the model fit, it is advisable to fit the model with multiple starting values. This is what the argument `retryFits` achieves. To limit computation time of the tutorial, it is limited to 2, but a larger number could be used in a real analysis. 
 
 #### 2-states with covariate effects on transition probabilities
 
@@ -386,10 +402,12 @@ Par0_hmm_trans_2 <- momentuHMM::getPar0(hmm_trans_2, formula=formula)
 Note: when new covariates are added to using getPar0(), the intercept coefficients are taken from the previous model, while initial value for slope coefficients are set to 0. We can see this by comparing the estimated transition probability parameters from the previous model to the initial parameters prepared for the next model with covariates.
 
 ```{r preview Par0_hmm_trans_2}
+
 # transition probability matrix (TPM) parameters from hmm1_km
 hmm_trans_2$mle$beta
 # initial parameters for hmm2_km with effect of preydiv on TPM
 Par0_hmm_trans_2$beta
+
 ```
 
 Fit a refined HMM with effect of prey diversity on transition probability using estimated parameters from the initial two-state HMM.
@@ -418,7 +436,9 @@ We can see from the step-length histogram and the map that it doesn't look like 
 
 
 ```{r plot hmm_trans_2_refined pseudo-resid, warning=FALSE}
+
 plotPR(hmm_trans_2_refined)
+
 ```
 
 We can see in the Q-Q plot for step length (top row, middle plot), that the observed step lengths (red points) are have a higher sample quantile than predicted by the model (shaded grey area) around the theoretical quantile around 1.5. This can be interpreted as the model predicting more steps around the 1.5th theoretical quantile than there are, or in other words, that the speed of steps around the 1.5th quantile are faster than the model predicts. There is also some autocorrelation in the step length (top row, right plot) above the dotted blue line, suggesting that the latent states do not explain all the variation in observed step length. The residuals may be due to a missing state or missing effect of covariates on observation process. We will explore both of these. 
@@ -458,11 +478,13 @@ hmm_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=nbStates,
 
 ```
 
-Explore model
+Explore model.
 
 ```{r}
+
 plot(hmm_3, ask = F)
 plotPR(hmm_3)
+
 ```
 
 The predicted state map seems to adequately capture slow, moderate, and fast movement. Importantly, the ACF plots are significantly improved from previous 2-state models. Therefore, the remainder of our analysis will be built on the 3-state model.
@@ -508,8 +530,10 @@ hmm_trans_3$CIbeta
 It's helpful to visualize the results for easier interpretation of the parameters and regression coefficients.
 
 ```{r plot hmm_trans_3, message = FALSE}
+
 plot(hmm_trans_3)
 plotPR(hmm_trans_3)
+
 ```
 
 We can see that this three-state HMM does better than the two-state HMM. We can see that those short and moderate step-lengths are captured in state 1 and 2, respectively, and the map of the decoded states appears to group different looking movement patterns as different states. Further, the pseudo-residual plot for step length look pretty good, with almost all of the observed points in the Q-Q plot falling within the predicted Q-Q bands. 
@@ -559,7 +583,9 @@ DM <- list(step = stepDM, angle = angleDM)
 Next we grab the parameters from our refined three-state HMM and update the model to include a design matrix (DM) for effects of covariates on distributions. 
 
 ```{r get initial parameter estimates for hmm_obs_3 from hmm_trans_3}
+
 Par0_hmm_obs_3 <- getPar0(hmm_trans_3, DM = DM)
+
 ```
 
 Just as when we added covariates to the transition probability, when adding new covariates to observation probabilities using getPar0(), the intercept coefficients are taken from the previous model and initial slope coefficients are set to 0. We can see this by comparing the previously estimated parameters to the initial parameters for the next model with covariates. Note that when DM is not included in the model, `momentuHMM` assumes initial parameters are on the natural scale (i.e., on the scale of how observations are measured). However, when DM is included, then initial parameters must be provided on the working scale (i.e., the scale in which the optimization occurs, between negative and positive infinity). To convert working-scale parameters to the natural scale, we must apply the inverse of the link function associated with that parameter (Table 2 in the vignette for `momentuHMM`). In the case of mean and standard deviation associated with the gamma distribution used for step length, the link function is `log()`, therefore we must apply `exp()` to convert the working scale parameters returned by `getPar0()` to the natural scale.
@@ -568,27 +594,33 @@ Just as when we added covariates to the transition probability, when adding new 
 Fit the model.
 
 ```{r fit hmm_obs_3}
+
 hmm_obs_3 <- momentuHMM::fitHMM(data=data_hmm, nbStates=3,
                               stateNames = c("Slow movement", "Moderate movement", "Fast movement"),
                               dist=list(step=stepDist,angle=angleDist),
                               Par0=Par0_hmm_obs_3$Par,
                               DM = DM, retryFits = 2)
+
 ```
 
 Visualize the results. 
 
 ```{r}
+
 plot(hmm_obs_3, ask = F, plotCI = T)
+
 ```
 
 The plots show that as prey diversity increases, the step length mean appears to decrease during slow movement. For the moderate movement, step length appears to increase as prey diversity increases. Likely due to low frequency of travelling (fast movement) state, the confidence intervals of effect of prey diversity on step length mean are unreliable. 
 
 There is no significant effect of prey diversity in turn angle concentration on any state. While not significant in our data set, turn angle concentration may decrease as prey diversity increases during slow movement (i.e., becomes more tortuous), and may be worth exploring with larger sample sizes. 
 
-View parameters
+View parameters.
 
 ```{r}
+
 hmm_obs_3$CIbeta
+
 ```
 
 We see that when including covariates affecting the observation distributions in a 3-state model, step length mean decreases as prey diversity increases for both the slow movement and fast movement states, where as the step length mean increase as prey diversity increases for the moderate movement state. Likewise, turning angle concentration decreases as prey diversity increases for both the slow movement and fast movement states, where as the turning angle concentration increase as prey diversity increases for the moderate movement state. In other words, as prey diversity increases, behaviors become slower (or faster) and more tortuous.
@@ -599,6 +631,7 @@ We see that when including covariates affecting the observation distributions in
 Here we are plotting a model's estimated relationship between the resource covariate and probability of selection can be useful for general ecological inference. We will calculate the log of the relative selection strength (log-RSS) for each selection function model. The log-RSS is a measure of how likely a location (for the RSF) or step (for SSFs) is to end in a proposed location (x1) to a single reference location (x2, the mean prey diversity), where zero indicates no preference, >1 indicates selection, and <1 indicates avoidance (Avgar et al. 2017, Fieberg et al. 2021). 
 
 First, we prepare a dataframe to predict on.
+
 ```{r prep fish}
 
 # prep the fish data
@@ -859,6 +892,7 @@ Now we will estimate the utilization distributions from each model to demonstrat
 ## RSF
 
 We can predict the estimated probability of use from the RSF by hand. First, grab the model coefficients and predict for each cell.
+
 ```{r rsf prediction}
 
 # grab model coefficients
@@ -881,6 +915,7 @@ newfish$rsf_prediction <- range01(x)
 ```
 
 Visualize results.
+
 ```{r rsf prediction map}
 
 map_rsf <- ggplot() + 
@@ -897,8 +932,8 @@ map_rsf
 
 We can use the `amt` functions to estimate the SSUDs from the simple SSF that does not allow prey diversity to affect the movement kernel. When estimating the SSUDs, the functions require that covariates are specifically labelled as occuring at the end of the step (i.e., `preydiv_end`). This is easily implemented by specifying `where = "both"` when using `extract_covariates`, which will then produce a column for `preydiv_start` and `preydiv_end`. By default, as in our initial fitting, `extract_covariates` extracts data for the end of the step, but does not record the `_start` or `_end` suffix. Thus, we are re-extracting covariates for ease throughout the generation of the SSUDs.
 
-
 ```{r ssf1 refit}
+
 # generate availability sample
 set.seed(2023)
 data_ssf <- seal %>%
@@ -913,6 +948,7 @@ data_ssf <- seal %>%
 m1 <- data_ssf |> 
   fit_clogit(case_ ~ preydiv_end +  sl_ + log(sl_) + cos(ta_) + 
                strata(step_id_))
+
 ```
 
 Now we will set the starting position for the simulation.
@@ -922,6 +958,7 @@ Now we will set the starting position for the simulation.
 start <- make_start((seal %>%
                        mutate(date = as.POSIXct(date)) %>%
                        make_track(lon, lat, date))[1,])
+
 ```
 
 We can also set constants for how many steps we want to simulate. Additionally, we set a burn-in number of steps, where we later remove this number of steps from the simulated path to reduce the influence of the starting point.
