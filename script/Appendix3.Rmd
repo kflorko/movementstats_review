@@ -266,14 +266,14 @@ b1 <- obs_sl_par$params$shape
 b2 <- obs_sl_par$params$scale
 
 # shape after prey diversity selection is included
-ssf1_gamma_shape <- b1 + summary(ssf1_b)$coef["log_sl",1]
+ssf1_gamma_shape <- b1 + summary(ssf1)$coef["log_sl",1]
 
 # notice that this modified shape is a bit different from the observed shape
 ssf1_gamma_shape # modified shape
 b1 # observed shape, a bit different
 
 # we can also modify scale to include prey diversity
-ssf1_gamma_scale <- 1/(1/b2 - summary(ssf1_b)$coef["sl_",1])
+ssf1_gamma_scale <- 1/(1/b2 - summary(ssf1)$coef["sl_",1])
 
 # notice that it is a bit different from the observed scale
 ssf1_gamma_scale # modified scale
@@ -298,7 +298,6 @@ summary(ssf2)
 ```
 
 Similar to ssf1, we don't see any significant relationships. Note that we also included a term for preydiv*log_sl. Since we have this interaction, preydiv and log_sl cannot be interpreted independently, thus we interpret the interaction. The interaction has a negative coefficient, suggesting that step lengths decreases with increased prey diversity, which makes sense intuitively, although note that the interaction is not significant.
-
 
 ## HMM
 
@@ -616,12 +615,12 @@ Since the RSF does not incorporate movement, we will calculate the log-RSS of th
 
 First, we make a base dataframe to create x1 and x2 from. The values of `log_sl` and `cos_ta` do not matter, but we need populated columns in order for the `log_rss` function to work.
 
-#MAM: if you go with using sl and ln(sl) as suggested above, you'll need to add sl_ here for the rest to work (I think)
 
 ```{r rsf log-rss prep}
 
 base <- newfish %>% 
-  mutate(log_sl = mean(data_ssf$log_sl),
+  mutate(sl_ = mean(data_ssf$sl_),
+         log_sl = mean(data_ssf$log_sl),
          cos_ta = cos(1))
 
 # x1 is our base dataframe
@@ -912,7 +911,7 @@ data_ssf <- seal %>%
 
 # fit SSF1 model
 m1 <- data_ssf |> 
-  fit_clogit(case_ ~ preydiv_end +  log(sl_) + cos(ta_) + 
+  fit_clogit(case_ ~ preydiv_end +  sl_ + log(sl_) + cos(ta_) + 
                strata(step_id_))
 ```
 
@@ -1014,7 +1013,7 @@ We will follow the same steps to generate a SSUD for the SSF that allows prey di
 ```{r ssf2 refit}
 
 m2 <- data_ssf %>%
-  fit_clogit(case_ ~ preydiv_end * log(sl_) + cos(ta_) + 
+  fit_clogit(case_ ~ preydiv_end * log(sl_) + sl_ + cos(ta_) + 
                strata(step_id_))
 
 ```
