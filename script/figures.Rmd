@@ -222,7 +222,7 @@ fig6b <- p1 +
 fig6c <- p1 + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
   scale_fill_viridis(option = "mako", name = "Predicted\nprobability", 
-                     breaks = c(0,0.02,0.04), limits = c(0, 0.04)) +
+                     breaks = c(0,0.02,0.04), limits = c(0, 0.041)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -414,9 +414,10 @@ dev.off()
 ```{r}
 #p1 <- read.csv("data/p1.csv", header = TRUE)
 #p2 <- read.csv("data/p2.csv", header = TRUE)
-
+  
 figS2a <- fishmap +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   geom_point(data = p1_burnt, aes(x = x_,y = y_), alpha = 0.61, color = "black") +
   geom_path(data = p1_burnt, aes(x = x_,y = y_), color = "black") +
   theme_minimal() +
@@ -435,7 +436,8 @@ figS2a <- fishmap +
 
 
 figS2b <- fishmap +
-  geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = "grey80", color = "white") +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   geom_point(data = p2_burnt, aes(x = x_,y = y_), alpha = 0.61, color = "black") +
   geom_path(data = p2_burnt, aes(x = x_,y = y_), color = "black") +
   theme_minimal() +
