@@ -288,22 +288,17 @@ ssf1_gamma_shape*ssf1_gamma_scale
 
 ```
 
-
 Next we will interpret ssf2. 
 
 ```{r ssf2 summary}
+
 # see model summary
 summary(ssf2)
 
-#MAM: checking if it works with sl
-summary(ssf2_b) # In essence they are the same. My understanding (see above) is that you get zero for sl, probably because the prey diversity is not changing the movement and the samples steps were sample using the estimated gamma parameters from the observed steps
 ```
 
-Similar to ssf1, we don't see any significant relationships. Note that we also included a term for preydiv*log_sl. Since we have this interaction, preydiv and log_sl cannot be interpreted independently, thus we interpret the interaction. The interaction is not significant, so this model does not suggest that prey diversity affects the movement speed of our ringed seal.
+Similar to ssf1, we don't see any significant relationships. Note that we also included a term for preydiv*log_sl. Since we have this interaction, preydiv and log_sl cannot be interpreted independently, thus we interpret the interaction. The interaction has a negative coefficient, suggesting that step lengths decreases with increased prey diversity, which makes sense intuitively, although note that the interaction is not significant.
 
-#MAM: I'm not sure the above is completely true, or at least it makes it feel like there is not much one can take out of this, when some insight can be gained. From Avgar et al. it appears that you can interpret negative preydiv:log_sl beta as meaning that long step length are less likely in higher prey diversity area (though not significant). While not significant, I think that matches the HMMs results, no? See my detailed info above, here the scale parameter is like above, but the shape is modified by prey diversity, which means that we have (b1 + b7) + b8* preydiv], where b1 is again the b1 from the observed data, b7 is the coef associated with log_sl, and b8 is the coef value associated with preydiv:log_sl, and it means that if negative than the shape decreases with increasing preydiv, which mean that the mean step length decreases with increasing predy diversity. One important note, is I think the results from the ssf makes sense they are just not significant.
-
-#MAM: Main note, I would change everything to include the sl and ln(sl), so using model ssf1_b and ssf2_b (and make the change in the main text and appendix). That makes the relationship with gamma straightforward. If you prefer sticking with the original, than explain why (maybe somewhere they say that the scale is rarely affacted in iSSA, please cite if that's the case).
 
 ## HMM
 
