@@ -998,7 +998,7 @@ Now we will estimate the utilization distributions from each model to demonstrat
 
 ## RSF
 
-We can predict the estimated probability of use from the RSF by hand. First, grab the model coefficients and predict for each cell.
+We can predict the estimated probability of use from the RSF with all the data by hand. First, grab the model coefficients and predict for each cell.
 
 ```{r rsf prediction}
 
@@ -1021,7 +1021,7 @@ newfish$rsf_prediction <- range01(x)
 
 ```
 
-Visualize results.
+Visualize results for the rsf of all the data.
 
 ```{r rsf prediction map}
 
@@ -1034,6 +1034,32 @@ map_rsf <- ggplot() +
 map_rsf
 
 ```
+
+
+Now do the same for the rsf with the thinned dataset.
+
+```{r rsf2 prediction}
+
+# grab model coefficients
+modcoef2 <- summary(rsf2)$coef
+
+# prediction for each cell
+x2 <- exp(modcoef2[2] * newfish$preydiv)
+
+# set the range from zero to one
+newfish$rsf_prediction2 <- range01(x2)
+
+map_rsf2 <- ggplot() + 
+  geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction2)) +
+  scale_fill_viridis(option = "mako", name = "RSF prediction",limits = c(0,1)) +
+  geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
+  coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
+  theme_void()
+map_rsf2
+
+```
+
+We see that the two RSFs show a similar prediction map due to both having a positive coefficient estimate. However, it is important to note that the std error in the rsf of the thinned dataset is much larger.
 
 ## SSF
 
