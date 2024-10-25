@@ -205,7 +205,7 @@ data_rsf %>%
 
 ```
 
-We can see that the data has autocorrelation, and that after sampling every 10th row, the autocorrelation seems to be reduced. We will fit a RSF with a dataset that samples every 10th row, and call it rsf2.
+We can see that the data has autocorrelation, and that after sampling every 10th row, the autocorrelation seems to be reduced. We will fit a RSF with the thinned dataset that samples every 10th row, and call it rsf2.
 
 ```{r}
 data_rsf_subsampled <- data_rsf %>%
@@ -712,9 +712,9 @@ x2 <- base  %>%
 
 ```
 
-Now we will apply `log_rss()` to each row. Since `log_rss()` only assessed one location relative to a reference point, we will use lapply to iterate through all locations.
+Now we will apply `log_rss()` to each row for rsf1. Since `log_rss()` only assessed one location relative to a reference point, we will use lapply to iterate through all locations.
 
-```{r rsf log-rss}
+```{r rsf1 log-rss}
 
 log_rss_list <- lapply(1:nrow(x1), function(i) {
   # Calculate log-RSS for that row
@@ -728,9 +728,9 @@ res1 <- dplyr::bind_rows(log_rss_list)
 
 ```
 
-Visualize results.
+Visualize results for rsf1.
 
-```{r rsf log-rss plot}
+```{r rsf1 log-rss plot}
 
 # plot
 line_rsf <- ggplot(res1, aes(x = preydiv_x1, y = (log_rss))) +
@@ -746,6 +746,42 @@ line_rsf
 
 We see a positive relationship between prey diversity and log-RSS, which suggests that our seal is more likely to be present in areas with higher prey diversity than areas with low prey diversity. Note the bowtie shape of the standard error is due to log-RSS calculating selection strength relative to a starting step, in this case, where prey diversity is set to its mean.
 
+We will now apply `log_rss()` for rsf2.
+
+```{r rsf2 log-rss}
+
+log_rss_list_thinned <- lapply(1:nrow(x1), function(i) {
+  # Calculate log-RSS for that row
+  xx <- log_rss(rsf2, x1[i,], x2[i,], ci = "se")
+  # Return the element $df
+  return(xx$df)
+})
+
+# combine rows
+res1_thinned <- dplyr::bind_rows(log_rss_list_thinned)
+
+# combine with rsf1
+res_both <- bind_rows(
+  res1 %>% mutate(model = "rsf1"),
+  res1_thinned %>% mutate(model = "rsf2"))
+
+# plot
+line_rsf2 <- ggplot(res_both, aes(x = preydiv_x1, y = log_rss, color = model, fill = model)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_line(linewidth = 1, linetype = 2) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
+  xlab("Prey diversity") +
+  ylab("log-RSS") +
+  theme_minimal() +
+  scale_color_manual(values = c("rsf1" = "#F8D59F", "rsf2" = "#AFC6D0")) +
+  scale_fill_manual(values = c("rsf1" = "#F8D59F", "rsf2" = "#AFC6D0"))
+
+line_rsf2
+
+```
+
+We can see how the predicted relationship with prey diversity has smaller error bars is smaller in the model that used all of the data (rsf1), and much larger error bars in the model that used a thinned dataset (rsf2).
+
 
 ## SSF
 
@@ -757,7 +793,7 @@ First, we will calculate log-RSS for ssf1. Again, since `log_rss()` only assesse
 
 ## log-RSS prediction for ssf1
 # apply log_rss() to each row
-log_rss_list <- lapply(1:nrow(x1), function(i) {
+log_rss_list_ssf1 <- lapply(1:nrow(x1), function(i) {
   # Calculate log-RSS for that row
   xx <- log_rss(ssf1, x1[i,], x2[i,], ci = "se")
   # Return the element $df
@@ -765,7 +801,7 @@ log_rss_list <- lapply(1:nrow(x1), function(i) {
 })
 
 # combine rows
-res2 <- dplyr::bind_rows(log_rss_list) %>%
+res2 <- dplyr::bind_rows(log_rss_list_ssf1) %>%
   mutate(Speed = "without int.")
 
 ```
@@ -786,6 +822,37 @@ line_ssf1
 ```
 
 We see no relationship between prey diversity and log-RSS, which suggests that our seal is similarily likely to be present in areas with higher prey diversity and areas with low prey diversity.
+
+We will make a combined plot with the two RSFs and this SSF.
+
+```{r rsf1 rsf2 ssf1 log-rss plot}
+# combine with rsf1
+res_all <- bind_rows(
+  res1 %>% mutate(model = "rsf1"),
+  res1_thinned %>% mutate(model = "rsf2"),
+  res2 %>% mutate(model = "ssf1"))
+
+
+# Reorder factor levels for the model column to ensure rsf models are drawn last (on top)
+res_all$model <- factor(res_all$model, levels = c("ssf1", "rsf2", "rsf1"))
+
+# plot
+line_ssf1_rsfboth <- ggplot(res_all, aes(x = preydiv_x1, y = log_rss, fill = model)) +
+  geom_hline(aes(group = model), yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, group = model), alpha = 0.4) +  
+  geom_line(aes(color = model), linewidth = 0.5, alpha = 0.3) +  
+  xlab("Prey diversity") +
+  ylab("log-RSS") +
+  theme_minimal() +
+  scale_fill_manual(values = c("rsf1" = "black", "rsf2" = "#FF6E6E", "ssf1" = "#3AC69D")) +
+  scale_color_manual(values = c("rsf1" = "black", "rsf2" = "#FF6E6E", "ssf1" = "#3AC69D")) +
+  guides(fill = guide_legend(reverse = TRUE), color = guide_legend(reverse = TRUE))
+
+
+line_ssf1_rsfboth
+```
+
+
 
 Now we will calculate log-RSS for ssf2. We will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. First, identify what the percentiles are.
 
