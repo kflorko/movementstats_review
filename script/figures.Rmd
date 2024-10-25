@@ -134,30 +134,35 @@ dev.off()
 
 # Fig. 5
 ```{r}
-res_both <- dplyr::bind_rows(res1 %>% mutate(Model = "RSF"),
+res_both <- dplyr::bind_rows(res1 %>% mutate(Model = "RSF of all data"),
+                             res1_thinned %>% mutate(Model = "RSF of thinned data"),
                       res2 %>% mutate(Model = "SSF")) %>%
   mutate(Model = as.factor(Model))
 
+# Reorder factor levels for the model column to ensure rsf models are drawn last (on top)
+res_both$Model <- factor(res_both$Model, levels = c("SSF", "RSF of thinned data", "RSF of all data"))
+
 fig5a <- ggplot() + theme_minimal() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-  geom_line(data = res_both, aes(x = preydiv_x1, y = log_rss, color = Model), size = 1, linetype = 2) +
+  geom_line(data = res_both, aes(x = preydiv_x1, y = log_rss, color = Model), size = 0.5) +
   geom_ribbon(data = res_both, aes(y = log_rss, ymin=lwr, ymax=upr, x=preydiv_x1, fill = Model), alpha = 0.4) +
-  scale_color_manual(values = c("#BE496F", "#F8D59F")) +
-  scale_fill_manual(values = c("#BE496F", "#F8D59F")) +
+  scale_color_manual(values = c("#FFBF00", "#3CDBC0", "black")) +
+  scale_fill_manual(values = c("#FFBF00", "#3CDBC0", "black")) +
   xlab("Prey diversity") +
   ylab("\nlog-RSS") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
   ggtitle("A)") +
-  theme(legend.position = c(0.19, 0.9), text = element_text(size=14)) +
+  theme(legend.position = c(0.39, 0.86), text = element_text(size=14)) +
   xlim(0.55, 0.70) +
-  ylim(-2.5, 2.5)
+  ylim(-2.5, 2.5) +
+  guides(fill = guide_legend(reverse = TRUE), color = guide_legend(reverse = TRUE))
 
 fig5b <- ggplot(results_ssf2, aes(x = preydiv_x1, y = (log_rss))) +
   theme_minimal() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray")  +
   geom_ribbon(aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.5) +
-  geom_line(size = 1, aes(color = Speed, group = Speed)) +
+  geom_line(size = 0.5, aes(color = Speed, group = Speed)) +
   scale_fill_viridis_d(option="rocket", breaks=c('Slow', 'Moderate', 'Fast'), labels = c('Slow', 'Moderate', 'Fast')) +
   scale_color_viridis_d(option="rocket", breaks=c('Slow', 'Moderate', 'Fast'), labels = c('Slow', 'Moderate', 'Fast')) +
   xlab("Prey diversity") +

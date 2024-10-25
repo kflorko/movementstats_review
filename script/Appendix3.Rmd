@@ -853,7 +853,6 @@ line_ssf1_rsfboth
 ```
 
 
-
 Now we will calculate log-RSS for ssf2. We will estimate the log-RSS for three different step-lengths (slow, moderate, fast). We set these speeds as the 25th, 50th, and 75th percentiles of step-length, then loop the log-RSS for each speed. First, identify what the percentiles are.
 
 ```{r ssf2 log-rss prep}
