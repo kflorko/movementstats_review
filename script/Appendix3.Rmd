@@ -3,6 +3,12 @@ title: "A review of statistical models used to characterize species-habitat asso
 author: "Katie Florko, Ron Togunov, Marie Auger-Méthé"
 date: "24/01/2024"
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
@@ -10,12 +16,6 @@ output:
     number_sections: yes
     theme: united
     highlight: tango
-  word_document:
-    toc: yes
-    toc_depth: '3'
-  pdf_document:
-    toc: yes
-    toc_depth: '3'
 ---
 
 ```{r setup, include=FALSE}
@@ -34,6 +34,7 @@ This document contains a coding tutorial that demonstrates how to perform the an
 library(here)
 library(tidyverse)
 library(lubridate)
+library(broom)
 
 # mapping
 library(rnaturalearth)
@@ -180,7 +181,47 @@ summary(rsf1)
 ```
 
 We see that prey diversity is a significant positive covariate. We do not interpret the intercept, since it is not ecologically meaningful in a RSF. See Fieberg et al. (2021) for a detailed discussion on how to interpret parameters. 
- 
+
+A possible reason for the significant positive estimate for prey diversity may be due to autocorrlation. We will check for autocorrelation, subsample, check for autocorrelation again, and refit the model to see how the estimate changes.
+
+```{r}
+# all of the data
+data_rsf %>%
+  filter(case_ == TRUE) %>%
+  select(preydiv) %>%
+  acf(plot = TRUE) %>%
+  tidy() %>%
+  filter(lag > 0)
+
+
+# subsample of the data, every 10th row
+data_rsf %>%
+  filter(case_ == TRUE) %>%
+  select(preydiv) %>%
+  filter(row_number() %% 10 == 1) %>%
+  acf(plot = TRUE) %>%
+  tidy() %>%
+  filter(lag > 0)
+
+```
+
+We can see that the data has autocorrelation, and that after sampling every 10th row, the autocorrelation seems to be reduced. We will fit a RSF with a dataset that samples every 10th row, and call it rsf2.
+
+```{r}
+data_rsf_subsampled <- data_rsf %>%
+  filter(row_number() %% 10 == 1) 
+
+# fit rsf (a binomial logistic regression)
+rsf2 <- data_rsf_subsampled %>%
+  amt::fit_rsf(case_ ~ preydiv, model = TRUE)
+
+# see model summary
+summary(rsf2)
+
+```
+
+We can see that after subsampling the data, prey diversity is no longer a significant covariate.
+
 ## SSF
 
 Next we will fit our two SSFs. The workflow is similar to that of the RSF, however, the availability sample is generated differently. We transform the seal locations into a track format, then convert the track data into step format (i.e., with a start and an end), and then generate the availability sample.
