@@ -3,12 +3,6 @@ title: "A review of statistical models used to characterize species-habitat asso
 author: "Katie Florko, Ron Togunov, Marie Auger-Méthé"
 date: "24/01/2024"
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '3'
-  word_document:
-    toc: yes
-    toc_depth: '3'
   html_document:
     toc: yes
     toc_float: yes
@@ -16,6 +10,12 @@ output:
     number_sections: yes
     theme: united
     highlight: tango
+  word_document:
+    toc: yes
+    toc_depth: '3'
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
 ---
 
 ```{r setup, include=FALSE}
