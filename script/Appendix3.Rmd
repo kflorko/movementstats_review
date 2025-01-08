@@ -1105,7 +1105,16 @@ burnin <- n_steps/50 # number of steps to remove for the burn-in
 
 Generate the redistribution kernel. 
 
+We will use an expanded prey diversity raster to avoid the reflective boundary in our prediction map of the study area that may form as an artefact of the simulation.
+
+
 ```{r ssf1 set redistribution kernel}
+
+# read extended fish data
+fish_extended <- read.csv(here("data/fish_extended.csv"))
+
+# rasterize prey diversity data
+fish_extended_raster <- terra::rast(fish_extended, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 k1 <- redistribution_kernel(m1, map = fish_extended_raster, start = start,
                             stochastic = TRUE,
@@ -1148,14 +1157,8 @@ ssf_track_1
 ```
 
 We will use this track to estimate the SSUD. We will convert the estimated SSUD to a data frame for easy plotting.
-We will use an expanded prey diversity raster to avoid the reflective boundary in our prediction map of the study area that may form as an artefact of the simulation.
 
 ```{r ssf1 ssud plot prep}
-# read extended fish data
-fish_extended <- read.csv(here("data/fish_extended.csv"))
-
-# rasterize prey diversity data
-fish_extended_raster <- terra::rast(fish_extended, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 # estimate SSUD
 uds_ssf1 <- tibble(rep = 1:nrow(p1_burnt), 
