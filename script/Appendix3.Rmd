@@ -1068,7 +1068,7 @@ We can use the `amt` functions to estimate the SSUDs from the simple SSF that do
 ```{r ssf1 refit}
 
 # generate availability sample
-set.seed(2023)
+set.seed(2024)
 data_ssf <- seal %>%
   mutate(date = as.POSIXct(date)) %>%
   make_track(lon, lat, date) %>%
@@ -1098,7 +1098,7 @@ We can also set constants for how many steps we want to simulate. Additionally, 
 
 ```{r ssf1 set constants}
 
-n_steps = 1e4 # number of steps
+n_steps = 2e4 # number of steps
 burnin <- n_steps/50 # number of steps to remove for the burn-in
 
 ```
@@ -1107,7 +1107,7 @@ Generate the redistribution kernel.
 
 ```{r ssf1 set redistribution kernel}
 
-k1 <- redistribution_kernel(m1, map = fish_raster, start = start,
+k1 <- redistribution_kernel(m1, map = fish_extended_raster, start = start,
                             stochastic = TRUE,
                             tolerance.outside = 1,
                             n.control = n_steps)
@@ -1118,7 +1118,7 @@ Simulate the path. This function will likely take about five minutes on most lap
 
 ```{r ssf1 simulate path}
 
-set.seed(2023)
+set.seed(2024)
 p1 <- amt::simulate_path(x = k1, n = n_steps, start = start, verbose = TRUE)
 
 #p1 <- read.csv(here("data/p1_1e4.csv")) %>% as_tibble()
@@ -1148,15 +1148,22 @@ ssf_track_1
 ```
 
 We will use this track to estimate the SSUD. We will convert the estimated SSUD to a data frame for easy plotting.
+We will use an expanded prey diversity raster to avoid the reflective boundary in our prediction map of the study area that may form as an artefact of the simulation.
 
 ```{r ssf1 ssud plot prep}
+# read extended fish data
+fish_extended <- read.csv(here("data/fish_extended.csv"))
 
+# rasterize prey diversity data
+fish_extended_raster <- terra::rast(fish_extended, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# estimate SSUD
 uds_ssf1 <- tibble(rep = 1:nrow(p1_burnt), 
     x_ = p1_burnt$x_, y_ = p1_burnt$y_,
     t_ = p1_burnt$t_, dt = p1_burnt$dt) %>%
   filter(!is.na(x_)) %>%
   make_track(x_, y_) %>% 
-  hr_kde(trast = fish_raster, which_min = "global") %>%
+  hr_kde(trast = fish_extended_raster, which_min = "global") %>%
   hr_ud() %>% 
   terra::as.data.frame(xy = TRUE)
 
@@ -1176,7 +1183,7 @@ map_ssf1
 
 ```
 
-The map shows that probability of use is fairly generally distributed in space.
+The map shows that probability of use is fairly generally distributed in space, with some slightly higher predictions in the southwest and northeast regions of the study area. Note that the prediction values are small.
 
 We will follow the same steps to generate a SSUD for the SSF that allows prey diversity to affect the movement kernel.
 
@@ -1192,8 +1199,8 @@ Generate the redistribution kernel.
 
 ```{r ssf2 redistribution kernel}
 
-set.seed(2023)
-k2 <- redistribution_kernel(m2, map = fish_raster, start = start,
+set.seed(2024)
+k2 <- redistribution_kernel(m2, map = fish_extended_raster, start = start,
                             stochastic = TRUE,
                             tolerance.outside = 1,
                             n.control = n_steps)
@@ -1204,7 +1211,7 @@ Simulate the path. Similar to SSF1, this function may take some time to run. I h
 
 ```{r ssf2 simulation}
 
-set.seed(2023)
+set.seed(2024)
 p2 <- amt::simulate_path(x = k2, n = n_steps, start = start, verbose = TRUE) 
 #p2 <- read.csv(here("data/p2_1e4.csv")) %>% as_tibble()
 
@@ -1241,7 +1248,7 @@ uds_ssf2 <- tibble(rep = 1:nrow(p2_burnt),
     t_ = p2_burnt$t_, dt = p2_burnt$dt) |> 
   filter(!is.na(x_)) |> 
   make_track(x_, y_) |> 
-  hr_kde(trast = fish_raster, which_min = "global") %>%
+  hr_kde(trast = fish_extended_raster, which_min = "global") %>%
   hr_ud() %>% 
   terra::as.data.frame(xy = TRUE)
 
@@ -1260,6 +1267,8 @@ map_ssf2 <- ggplot() +
 map_ssf2
 
 ```
+
+The map shows that probability of use is fairly generally distributed in space, with some  higher predictions in the southeast regions of the study area. Note that the prediction values are small.
 
 ## HMM
 

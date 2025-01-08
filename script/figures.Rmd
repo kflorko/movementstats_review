@@ -197,7 +197,7 @@ dev.off()
 ```{r}
 fig6a <- p1 +
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", limits = c(0, 1), breaks = c(0.0, 0.5, 1)) +
+  scale_fill_viridis(option = "mako", name = "Probability\nof use", limits = c(0, 1), breaks = c(0.0, 0.5, 1)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -215,7 +215,7 @@ fig6a <- p1 +
 
 fig6b <- p1 + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", 
+  scale_fill_viridis(option = "mako", name = "Probability\nof use", 
                      breaks = c(0,0.02,0.04), limits = c(0, 0.04)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
@@ -223,7 +223,7 @@ fig6b <- p1 +
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("B) SSF without move-related covar") +
+  ggtitle("B) SSF without move-habitat int.") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -233,7 +233,7 @@ fig6b <- p1 +
 
 fig6c <- p1 + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "Predicted\nprobability", 
+  scale_fill_viridis(option = "mako", name = "Probability\nof use", 
                      breaks = c(0,0.02,0.04), limits = c(0, 0.041)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
@@ -241,7 +241,7 @@ fig6c <- p1 +
         legend.key.width = unit(0.4, "cm"),
         legend.direction = "horizontal",
         legend.position = c(0.80, 0.89)) +
-  ggtitle("C) SSF with move-related covar") +
+  ggtitle("C) SSF with move-habitat int.") +
   ylab(" \n \n  ") + xlab("") +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
@@ -255,7 +255,7 @@ fig6d <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state1"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'Predicted\nprobability') +
+  labs(fill = 'Probability\nof use') +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -274,7 +274,7 @@ fig6e <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state2"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'Predicted\nprobability') +
+  labs(fill = 'Probability\nof use') +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -293,7 +293,7 @@ fig6f <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state3"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'Predicted\nprobability') +
+  labs(fill = 'Probability\nof use') +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -308,7 +308,7 @@ fig6f <- p1 +
          title.hjust = 0.5), 
          size = guide_legend(title.position="top", title.hjust = 0.5))
 
-tiff(file = "figures/asus_fig6.tiff", units="in", width=13, height = 8.5, res=300)
+tiff(file = "figures/asus_fig6.tiff", units="in", width=13, height = 8.5, res=200)
 plot_grid(fig6a, fig6b, fig6c, fig6d, fig6e, fig6f, ncol = 3)
 dev.off()
 ```

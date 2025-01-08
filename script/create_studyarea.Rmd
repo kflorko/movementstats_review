@@ -33,8 +33,10 @@ fishres <- resample(fish_test, r2, method = "near")
 # crop to remove land
 test2 <- terra::mask(fishres, canada, inverse = TRUE, updatevalue = 1)
 
+
 # extend to outside of the study area
-test3 <- terra::extend(test2, (ext(test2) +1), fill = 1)
+meanfish <- pull(global(test2, fun = "mean", na.rm = TRUE))
+test3 <- terra::extend(test2, (ext(test2) +1), fill = meanfish)
 plot(test3)
 
 
@@ -63,6 +65,58 @@ ggplot() +
   geom_tile(data = fish_ext, aes(x = x,y = y, fill = preydiv_cropped)) +
   geom_polygon(data = nat_trans, aes(x=long,y=lat,group=group), fill = NA, color = "white") +
   coord_cartesian(xlim = c(150000,550000), ylim = c(-500000,-50000), expand = F) 
+
+```
+
+# expand fish raster
+```{r}
+library(terra)
+library(here)
+
+# Load prey diversity data
+fish <- read.csv(here("data/fish.csv"))
+
+# Rasterize prey diversity data
+fish_raster <- terra::rast(fish, crs = "+proj=laea +lat_0=60 +lon_0=-85 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# Extract non-NA preydiv values from the original raster
+preydiv_values <- values(fish_raster, na.rm = TRUE)
+
+# Get the resolution of the raster
+cell_size <- res(fish_raster)
+
+# Expand the extent symmetrically in all directions
+new_extent <- ext(fish_raster)
+new_extent <- ext(new_extent[1] - cell_size[1],  # xmin (west)
+                  new_extent[2] + cell_size[1],  # xmax (east)
+                  new_extent[3] - cell_size[2],  # ymin (south)
+                  new_extent[4] + cell_size[2])  # ymax (north)
+
+# Extend the raster to the new extent
+fish_raster_expanded <- extend(fish_raster, new_extent)
+
+# Replace NA cells in the expanded raster with random samples from preydiv_values
+expanded_values <- values(fish_raster_expanded)
+expanded_values[is.na(expanded_values)] <- sample(preydiv_values, 
+                                                  sum(is.na(expanded_values)), 
+                                                  replace = TRUE)
+values(fish_raster_expanded) <- expanded_values
+
+# Reproject the raster to match the original projection
+fish_raster_expanded <- project(fish_raster_expanded, crs(fish_raster))
+
+# Convert the expanded raster back to a data frame
+fish_extended_df <- as.data.frame(fish_raster_expanded, xy = TRUE)
+
+# Rename the columns to match the original structure
+colnames(fish_extended_df) <- c("x", "y", "preydiv")
+
+# Save the data frame as a CSV file
+output_path <- here("data/fish_extended.csv")
+write.csv(fish_extended_df, file = output_path, row.names = FALSE)
+
+# Print message confirming the save location
+cat("Expanded data saved at:", output_path, "\n")
 
 ```
 
