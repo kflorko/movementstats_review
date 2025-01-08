@@ -59,11 +59,15 @@ fig4a <- p1 +
 
 data_hmm$state <- as.factor(momentuHMM::viterbi(hmm_trans_3))
 # make sure data_hmm is the UTM version
+# add proper utm
+data_hmm_seal<- data_hmm %>%
+  mutate(lat = seal$lat,
+         lon = seal$lon)
 
 fig4b <- p1 +
   scale_fill_viridis(option = "mako", limits = c(0.5, 0.75), name = "Prey\ndiversity") +
-  geom_path(data=data_hmm, aes(x=x, y=y, color = state, group =ID)) + 
-  geom_point(data=data_hmm, aes(x=x, y=y, color = state, shape = state), size=2, alpha = 0.8) + 
+  geom_path(data=data_hmm_seal, aes(x=lon, y=lat, color = state, group =ID)) + 
+  geom_point(data=data_hmm_seal, aes(x=lon, y=lat, color = state, shape = state), size=2, alpha = 0.8) + 
   scale_color_manual(values = c("#99DDB6", "#539D9C", "#312C66"), 
                      labels = c("Slow", "Moderate", "Fast"), 
                      name = "HMM state") +
@@ -84,6 +88,9 @@ fig4b <- p1 +
   guides(fill = guide_colourbar(title.position="top", 
          title.hjust = 0.5), 
          size = guide_legend(title.position="top", title.hjust = 0.5))
+
+fig4b
+
 
 
 fig4c <- p1 + 
@@ -112,7 +119,7 @@ fig4d <- p1 +
   geom_point(data=data_ssf %>% filter(case_ == "TRUE"), aes(x=x2_, y=y2_), alpha = 0.8, color = "#5B207C") +
   geom_path(data=seal, aes(x=lon, y=lat), color = "#5B207C") +
   scale_color_manual(values = c("#F1A97A", "#5B207C"), 
-                     label = c("Available", "Observed"), 
+                     label = c("Control", "Observed"), 
                      breaks = c("FALSE", "TRUE"),
                      name = "   Data type") +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 

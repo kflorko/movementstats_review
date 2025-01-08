@@ -209,7 +209,7 @@ We can see that the data has autocorrelation, and that after sampling every 10th
 
 ```{r}
 data_rsf_subsampled <- data_rsf %>%
-  filter(row_number() %% 10 == 1) 
+  filter(dplyr::row_number() %% 10 == 1) 
 
 # fit rsf (a binomial logistic regression)
 rsf2 <- data_rsf_subsampled %>%
@@ -761,7 +761,7 @@ log_rss_list_thinned <- lapply(1:nrow(x1), function(i) {
 res1_thinned <- dplyr::bind_rows(log_rss_list_thinned)
 
 # combine with rsf1
-res_both <- bind_rows(
+res_both <- dplyr::bind_rows(
   res1 %>% mutate(model = "rsf1"),
   res1_thinned %>% mutate(model = "rsf2"))
 
@@ -812,7 +812,7 @@ Visualize results.
 
 line_ssf1 <- ggplot() +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
-  geom_line(data = res2, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed), size = 1, linetype = 3, color = "black") + 
+  geom_line(data = res2, aes(x = preydiv_x1, y = log_rss, color = Speed, group = Speed), linewidth = 1, linetype = 3, color = "black") + 
   geom_ribbon(data = res2, aes(ymin=lwr, ymax=upr, x=preydiv_x1, fill = Speed, group = Speed), alpha = 0.3, fill = "black") +
   xlab("Prey diversity") +
   ylab("log-RSS") +
@@ -827,7 +827,7 @@ We will make a combined plot with the two RSFs and this SSF.
 
 ```{r rsf1 rsf2 ssf1 log-rss plot}
 # combine with rsf1
-res_all <- bind_rows(
+res_all <- dplyr::bind_rows(
   res1 %>% mutate(model = "rsf1"),
   res1_thinned %>% mutate(model = "rsf2"),
   res2 %>% mutate(model = "ssf1"))
