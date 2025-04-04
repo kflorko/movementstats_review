@@ -1,7 +1,7 @@
 ---
-title: "A review of statistical models used to characterize species-habitat associations with movement data: Appendix 3"
+title: "An introduction to statistical models used to characterize species-habitat associations with movement data: Appendix 3"
 author: "Katie Florko, Ron Togunov, Marie Auger-Méthé"
-date: "24/01/2024"
+date: "25/01/2025"
 output:
   html_document:
     toc: yes
@@ -39,9 +39,9 @@ library(broom)
 # mapping
 library(rnaturalearth)
 library(rnaturalearthdata)
-library(rgdal) 
+#library(rgdal) 
 #if you need to install rgdal, install from archive:
-#devtools::install_version('rgdal', version = '1.6-7') )
+#devtools::install_version('rgdal', version = '1.6-7') 
 library(terra)
 library(tidyterra)
 library(sf)
@@ -678,7 +678,7 @@ First, we prepare a dataframe to predict on.
 # prep the fish data
 newfish <- fish_raster %>%
   terra::as.data.frame(xy = TRUE) %>%
-  filter(x > 100000 & x < 600000 & y > -550000 & y < 0)
+  filter(x >= 143329.9 & x <= 543329.9 & y >= -491109 & y <= -41109)
 
 ```
 
@@ -1003,7 +1003,7 @@ We can predict the estimated probability of use from the RSF with all the data b
 ```{r rsf prediction}
 
 # grab model coefficients
-modcoef <- summary(rsf1)$coef
+modcoef <- summary(rsf2)$coef
 
 # prediction for each cell
 x <- exp(modcoef[2] * newfish$preydiv)

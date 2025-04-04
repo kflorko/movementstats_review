@@ -94,7 +94,7 @@ new_extent <- ext(new_extent[1] - cell_size[1],  # xmin (west)
 
 # Extend the raster to the new extent
 fish_raster_expanded <- extend(fish_raster, new_extent)
-
+plot(fish_raster_expanded)
 # Replace NA cells in the expanded raster with random samples from preydiv_values
 expanded_values <- values(fish_raster_expanded)
 expanded_values[is.na(expanded_values)] <- sample(preydiv_values, 
@@ -104,6 +104,7 @@ values(fish_raster_expanded) <- expanded_values
 
 # Reproject the raster to match the original projection
 fish_raster_expanded <- project(fish_raster_expanded, crs(fish_raster))
+plot(fish_raster_expanded)
 
 # Convert the expanded raster back to a data frame
 fish_extended_df <- as.data.frame(fish_raster_expanded, xy = TRUE)

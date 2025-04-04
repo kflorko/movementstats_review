@@ -197,7 +197,7 @@ dev.off()
 ```{r}
 fig6a <- p1 +
   geom_tile(data = newfish, aes(x = x,y = y, fill = rsf_prediction)) +
-  scale_fill_viridis(option = "mako", name = "Probability\nof use", limits = c(0, 1), breaks = c(0.0, 0.5, 1)) +
+  scale_fill_viridis(option = "mako", name = "Prediction", limits = c(0, 1), breaks = c(0.0, 0.5, 1)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -215,7 +215,7 @@ fig6a <- p1 +
 
 fig6b <- p1 + 
   geom_tile(data = uds_ssf1, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "Probability\nof use", 
+  scale_fill_viridis(option = "mako", name = "Prediction", 
                      breaks = c(0,0.02,0.04), limits = c(0, 0.04)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
@@ -233,7 +233,7 @@ fig6b <- p1 +
 
 fig6c <- p1 + 
   geom_tile(data = uds_ssf2, aes(x = x,y = y, fill = preydiv)) +
-  scale_fill_viridis(option = "mako", name = "Probability\nof use", 
+  scale_fill_viridis(option = "mako", name = "Prediction", 
                      breaks = c(0,0.02,0.04), limits = c(0, 0.041)) +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
@@ -255,7 +255,7 @@ fig6d <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state1"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'Probability\nof use') +
+  labs(fill = 'Prediction') +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -274,7 +274,7 @@ fig6e <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state2"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'Probability\nof use') +
+  labs(fill = 'Prediction') +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -293,7 +293,7 @@ fig6f <- p1 +
   geom_tile(data = newfish_long %>% filter(model == "hmm_state3"), 
             aes(x = x, y = y, fill = prediction)) +
   scale_fill_viridis(option = "mako", limits = c(0,1), breaks = c(0.0, 0.5, 1.0)) +
-  labs(fill = 'Probability\nof use') +
+  labs(fill = 'Prediction') +
   geom_sf(data = nat_trans, fill = "grey80", color = "white") + 
   coord_sf(xlim = ext(fish_raster)[1:2], ylim = ext(fish_raster)[3:4], expand = F) +
   theme(legend.key.height=unit(0.3,"cm"),
@@ -406,7 +406,7 @@ figS1b <- ggplot() +
   scale_colour_manual(values=c(colours.states), breaks = c('Foraging', 'ARS', 'Travelling'), labels=c("Slow movement", "Moderate movement", "Fast movement")) +
   scale_x_continuous(limits=c(-pi,pi))+
   ylab("Density") + 
-  xlab("Turn angle (radians) ") +
+  xlab("Turning angle (radians) ") +
   theme_minimal() +
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1) +
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1) +
